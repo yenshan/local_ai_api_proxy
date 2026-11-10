@@ -103,6 +103,16 @@ GUI ではメッセージ、Request、Response、Codex events のタブを表示
 
 ## 開発・ビルド
 
+macOS で Node.js と npm をインストール済みなら、次の一回で依存パッケージのインストール、Electron バイナリの準備、`.app` のビルド、ローカル署名の検証まで実行できます。初回はダウンロードのためネット接続が必要です。
+
+```sh
+./build-mac.sh
+```
+
+出力先は Apple Silicon では `dist/mac-arm64/Codex Local API.app`、Intel では `dist/mac/Codex Local API.app` です。使用中の Node.js のアーキテクチャに合わせてビルドします。別のディレクトリからスクリプトのパスを指定しても実行できます。
+
+個別に実行する場合:
+
 ```sh
 npm ci
 npm start                 # Mac GUI
