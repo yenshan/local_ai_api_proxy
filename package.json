@@ -1,0 +1,45 @@
+{
+  "name": "codex-local-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Local OpenAI-compatible test server powered by Codex app-server",
+  "author": "Local Development",
+  "main": "src/main.cjs",
+  "scripts": {
+    "start": "node scripts/start.cjs",
+    "server": "node src/cli.cjs",
+    "test": "node --test test/*.test.cjs",
+    "build": "electron-builder --mac dir",
+    "dist": "electron-builder --mac dmg"
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0",
+    "openai": "^7.55.0"
+  },
+  "build": {
+    "appId": "local.codex.api",
+    "productName": "Codex Local API",
+    "electronDist": "node_modules/electron/dist",
+    "files": [
+      "src/**/*",
+      "ui/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.developer-tools",
+      "identity": "-",
+      "hardenedRuntime": false,
+      "target": [
+        "dir"
+      ],
+      "extendInfo": {
+        "NSLocalNetworkUsageDescription": "Serve a local API for application testing."
+      }
+    },
+    "directories": {
+      "output": "dist"
+    }
+  }
+}

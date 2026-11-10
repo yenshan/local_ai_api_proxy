@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
+  <title>Codex Local API</title><link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="titlebar"><span>LOCAL DEVELOPMENT / CODEX</span><span class="titlebar-right">API OBSERVATORY <span class="version">v1.0</span></span></div>
+  <aside class="sidebar">
+    <div class="brand"><div class="brand-icon">⌘</div><div>Codex<span>Local API</span></div></div>
+    <div class="nav-caption">WORKSPACE</div>
+    <button class="nav active" id="showRequests"><span>▤</span> リクエスト <kbd id="requestCount">0</kbd></button>
+    <button class="nav" id="showPlayground"><span>▷</span> Playground</button>
+    <button class="nav" id="showSettings"><span>⚙</span> サーバー設定</button>
+    <div class="sidebar-bottom">
+      <div class="engine"><span class="engine-symbol">↳</span><div>Codex app-server<small id="accountLabel">ローカルプロセス</small></div></div>
+      <div class="local-note"><span class="dot"></span> 127.0.0.1 のみで待ち受け</div>
+      <button class="text-button" id="openLogs">ログフォルダを開く ↗</button>
+    </div>
+  </aside>
+  <main>
+    <header class="page-header"><div><div class="eyebrow">DEVELOPER TOOLS</div><h1>API モニター<span class="live-tag">LIVE</span></h1><p>アプリと AI のやりとりを、ひとつの画面で。</p></div><div class="server-controls"><div class="status-pill"><span class="dot" id="statusDot"></span><span id="statusLabel">停止中</span></div><button class="primary" id="toggleServer">サーバーを起動</button></div></header>
+    <div id="serverError" class="error-banner" hidden></div>
+    <section class="connection-bar"><div class="connection-label"><span class="connection-icon">⇄</span><div><small>OPENAI COMPATIBLE ENDPOINT</small><code id="baseURL">http://127.0.0.1:8787/v1</code></div><button class="icon-button" id="copyURL" title="エンドポイントをコピー">⧉</button></div><div class="connection-model"><span class="dot"></span><span id="modelSummary">モデル未取得</span><button class="text-button" id="refreshModels" title="モデルを再取得">↻</button></div></section>
+    <section class="metrics"><article><span>リクエスト総数</span><strong id="totalMetric">0<small>requests</small></strong><div class="metric-bottom">この画面に保存された通信</div></article><article><span>実行中</span><strong id="activeMetric">0<small>active</small></strong><div class="metric-bottom"><span class="tiny-dot"></span> リアルタイムで更新</div></article><article><span>平均応答時間</span><strong id="latencyMetric">—<small>sec</small></strong><div class="metric-bottom">生成リクエストの完了まで</div></article><article><span>エラー</span><strong id="errorMetric">0<small>errors</small></strong><div class="metric-bottom" id="successMetric">リクエストを待機中</div></article></section>
+    <section class="activity">
+      <div class="section-header"><div><h2>リクエストログ</h2><span>REQUEST ACTIVITY</span></div><div class="actions"><button class="quiet" id="exportLogs">↓ エクスポート</button><button class="quiet" id="clearLogs">クリア</button></div></div>
+      <div class="toolbar"><div class="filter-group"><button class="filter selected" data-filter="all">すべて</button><button class="filter" data-filter="running">実行中</button><button class="filter" data-filter="error">エラー</button></div><input id="search" type="search" placeholder="モデル、パス、メッセージを検索…" aria-label="ログを検索"><span class="auto-update"><span class="dot"></span> 自動更新</span></div>
+      <div class="log-workspace"><div class="request-list" id="requestList"></div><div class="detail" id="detailPanel"><div class="empty-detail"><div class="empty-symbol">⌁</div><h3>通信の中身を、ここで確認。</h3><p>リクエストを選ぶと、メッセージや JSON、<br>生成中のイベントが表示されます。</p><button class="quiet" id="emptyPlayground">▷ Playground で試す</button></div></div></div>
+      <footer class="activity-footer"><span id="visibleCount">0 件のリクエスト</span><span>ログはこの Mac に保存されます<span class="dot"></span></span></footer>
+    </section>
+  </main>
+  <dialog id="settingsDialog"><form id="settingsForm"><div class="dialog-heading"><div class="eyebrow">CONFIGURATION</div><h2>サーバー設定</h2><button type="button" class="close-dialog" aria-label="閉じる">×</button></div><p class="dialog-description">Codex CLI のログイン情報を使用します。設定変更は停止中に行えます。</p><label>待ち受けポート<input name="port" type="number" min="1024" max="65535" required></label><label>Codex 実行ファイル<input name="binary" placeholder="自動検出（/opt/homebrew/bin/codex など）"></label><label>既定のモデル<select name="model"><option value="">Codex の既定モデル</option></select></label><label>推論の強度<select name="effort"><option value="">モデルの既定値</option></select></label><label>生成タイムアウト（秒）<input name="timeout" type="number" min="10" max="3600" required></label><div class="helper">アプリから送る model / reasoning_effort を優先します。<br>API キーは任意の文字列を指定できます（例: local）。</div><details><summary>Codex 診断ログ</summary><pre id="diagnostics"></pre></details><div class="dialog-footer"><button type="button" class="quiet close-dialog">閉じる</button><button class="primary" type="submit" id="saveSettings">設定を保存</button></div></form></dialog>
+  <dialog id="playgroundDialog"><form id="playgroundForm"><div class="dialog-heading"><div class="eyebrow">QUICK TEST</div><h2>Playground</h2><button type="button" class="close-dialog" aria-label="閉じる">×</button></div><p class="dialog-description">ローカル API にリクエストを送り、接続を確認します。</p><label>モデル<select id="testModel" required></select></label><label>System メッセージ<input id="testSystem" placeholder="例: 簡潔な日本語で答えてください。"></label><label>メッセージ<textarea id="testPrompt" rows="5" required>こんにちは。接続テストです。ひとことで返事をしてください。</textarea></label><div id="testResult" class="test-result" hidden></div><div class="dialog-footer"><button type="button" class="quiet close-dialog">閉じる</button><button class="primary" id="sendTest" type="submit">▷ リクエストを送信</button></div></form></dialog>
+  <div id="toast" class="toast" hidden></div>
+  <script src="app.js"></script>
+</body></html>
