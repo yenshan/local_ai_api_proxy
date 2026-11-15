@@ -25,7 +25,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('snapshot', () => ({ ...server.snapshot(), logs: server.store.list() }));
   ipcMain.handle('start', () => server.start());
   ipcMain.handle('stop', () => server.stop());
-  ipcMain.handle('configure', (_, settings) => server.configure(settings));
+  ipcMain.handle('configure', (_, settings) => server.applySettings(settings));
   ipcMain.handle('models', () => server.refreshModels());
   ipcMain.handle('cancel', (_, id) => server.cancel(id));
   ipcMain.handle('clear', () => server.store.clear());
@@ -86,7 +86,8 @@ app.whenReady().then(async () => {
       await window.webContents.executeJavaScript(`(async () => {
         await new Promise(resolve => setTimeout(resolve, 100));
         const form = document.querySelector('#settingsForm');
-        if (!form.elements.backend.disabled) throw new Error('Backend selector must be disabled while running');
+        if (Array.from(form.querySelectorAll('input,select')).some(input => !input.disabled)) throw new Error('All settings must be locked while running');
+        if (document.querySelector('#saveSettings')) throw new Error('Settings must save automatically');
         if (!Array.from(form.elements.backend.options).some(o => o.value === 'antigravity')) throw new Error('Antigravity option missing');
         if (!form.closest('.sidebar')) throw new Error('Settings must be in the sidebar');
       })()`);

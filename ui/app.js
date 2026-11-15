@@ -1,18 +1,36 @@
 const $ = id => document.getElementById(id);
-let snapshot = { state: 'stopped', settings: {}, models: [], diagnostics: [] };
+let snapshot = { state: 'stopped', settings: {}, models: [] };
 let rows = []; let pending = false; let playgroundBusy = false; let toastTimer;
 let settingsSignature = '';
+let settingsDirty = false; let settingsBusy = false; let settingsTimer; let settingsLocked = false;
 const statusNames = { stopped: '停止中', starting: '起動中', running: '稼働中', stopping: '停止中…', error: '接続エラー' };
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500); }
 async function call(method, arg) { try { return await window.api.call(method, arg); } catch (err) { toast(err.message.replace(/^Error invoking remote method '[^']+': Error: /, '')); throw err; } }
 function click(id, action) { $(id).addEventListener('click', () => Promise.resolve().then(action).catch(() => {})); }
-function populateSelect(select, models, current, includeDefault) {
+function populateSelect(select, models, current) {
   select.replaceChildren();
-  if (includeDefault) { const option = el('option', '', 'バックエンドの既定モデル'); option.value = ''; select.append(option); }
-  for (const m of models) { const option = el('option', '', m.displayName || m.model); option.value = m.model; select.append(option); }
-  if (current && !models.some(m => m.model === current)) { const option = el('option', '', `${current}（未取得）`); option.value = current; select.append(option); }
-  if (current) select.value = current;
+  for (const model of models) { const option = el('option', '', model.displayName || model.model); option.value = model.model; select.append(option); }
+  if (models.some(model => model.model === current)) select.value = current;
+}
+function playgroundModels() {
+  return $('settingsForm').elements.backend.value === snapshot.settings.backend ? snapshot.models : [];
+}
+function renderPlayground() {
+  const models = playgroundModels();
+  const changedBackend = $('settingsForm').elements.backend.value !== snapshot.settings.backend;
+  const model = models.find(m => m.isDefault) || models[0];
+  const emptyLabel = changedBackend ? '設定を反映中…' : 'サーバー起動後にモデルを取得';
+  $('modelSummary').textContent = models.length ? `${model?.displayName || model?.model} · ${models.length} models` : emptyLabel;
+  $('refreshModels').disabled = settingsDirty || settingsBusy || changedBackend || snapshot.state !== 'running';
+  $('toggleServer').disabled = pending || settingsDirty || settingsBusy || ['starting', 'stopping'].includes(snapshot.state) || (changedBackend && snapshot.state !== 'running');
+  const previousModel = $('testModel').value;
+  const selectedModel = models.some(m => m.model === previousModel) ? previousModel : model?.model;
+  populateSelect($('testModel'), models, selectedModel);
+  if (!models.length) { const option = el('option', '', emptyLabel); option.value = ''; $('testModel').append(option); }
+  $('testModel').disabled = !models.length;
+  renderPlaygroundEffort(previousModel === selectedModel ? $('testEffort').value : '');
+  $('sendTest').disabled = playgroundBusy || settingsDirty || settingsBusy || changedBackend || snapshot.state !== 'running' || !models.length;
 }
 function renderState() {
   $('statusLabel').textContent = statusNames[snapshot.state];
@@ -22,19 +40,42 @@ function renderState() {
   $('toggleServer').classList.toggle('stop', snapshot.state === 'running');
   $('toggleServer').disabled = pending || ['starting','stopping'].includes(snapshot.state);
   $('baseURL').textContent = snapshot.baseURL || 'http://127.0.0.1:8787/v1';
-  const model = snapshot.models.find(m => m.isDefault) || snapshot.models[0];
-  $('modelSummary').textContent = snapshot.models.length ? `${model?.displayName || model?.model} · ${snapshot.models.length} models` : '起動時にモデルを取得';
-  $('refreshModels').disabled = snapshot.state !== 'running';
-  const selectedModel = snapshot.models.some(m => m.model === $('testModel').value) ? $('testModel').value : model?.model;
-  populateSelect($('testModel'), snapshot.models, selectedModel, false);
-  $('sendTest').disabled = playgroundBusy || snapshot.state !== 'running' || !snapshot.models.length;
-  const antigravity = snapshot.settings.backend === 'antigravity';
-  $('backendTitle').textContent = `LOCAL DEVELOPMENT / ${antigravity ? 'ANTIGRAVITY' : 'CODEX'}`;
+  renderSettings();
+  renderPlayground();
   $('serverError').hidden = !snapshot.error;
   $('serverError').textContent = snapshot.error || '';
-  renderSettings();
-  $('diagnostics').textContent = snapshot.diagnostics.map(d => `${d.time}\n${d.message}`).join('\n') || '診断ログはまだありません';
 }
+function antigravityEffortVariants() {
+  if (snapshot.settings.backend !== 'antigravity') return [];
+  const selected = $('testModel').value.match(/^(.*)-(minimal|low|medium|high|xhigh|max)$/);
+  if (!selected) return [];
+  return ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].flatMap(effort => {
+    const model = playgroundModels().find(m => m.model === `${selected[1]}-${effort}`);
+    return model ? [{ effort, model: model.model }] : [];
+  });
+}
+function renderPlaygroundEffort(current = '') {
+  const select = $('testEffort');
+  const variants = antigravityEffortVariants();
+  select.replaceChildren();
+  if (variants.length) {
+    for (const variant of variants) { const option = el('option', '', variant.effort); option.value = variant.effort; select.append(option); }
+    select.value = variants.find(v => v.model === $('testModel').value).effort;
+    select.disabled = variants.length < 2;
+    return;
+  }
+  const option = el('option', '', 'モデルの既定値'); option.value = ''; select.append(option);
+  const model = playgroundModels().find(m => m.model === $('testModel').value);
+  const efforts = snapshot.settings.backend === 'antigravity' ? [] : model?.supportedReasoningEfforts || [];
+  for (const entry of efforts) { const option = el('option', '', entry.reasoningEffort); option.value = entry.reasoningEffort; select.append(option); }
+  if (Array.from(select.options).some(option => option.value === current)) select.value = current;
+  select.disabled = !efforts.length;
+}
+$('testModel').addEventListener('change', () => renderPlaygroundEffort());
+$('testEffort').addEventListener('change', () => {
+  const variant = antigravityEffortVariants().find(v => v.effort === $('testEffort').value);
+  if (variant) { $('testModel').value = variant.model; renderPlaygroundEffort(); }
+});
 function contentText(value) {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) return value.map(part => typeof part?.text === 'string' ? part.text : '').filter(Boolean).join('\n');
@@ -80,37 +121,82 @@ click('copyURL', async () => { await navigator.clipboard.writeText(snapshot.base
 click('refreshModels', async () => { await call('models'); toast('モデル一覧を更新しました'); });
 function renderSettings() {
   const form = $('settingsForm');
+  const locked = !['stopped', 'error'].includes(snapshot.state);
+  if (locked) {
+    clearTimeout(settingsTimer); settingsDirty = false; settingsSignature = '';
+    settingsStatus('設定変更はサーバー停止後に行えます。');
+  } else if (settingsLocked) settingsStatus('変更は自動で反映されます。');
+  settingsLocked = locked;
   const settingsKey = JSON.stringify(snapshot.settings);
-  if (settingsKey !== settingsSignature) {
+  if (!settingsDirty && settingsKey !== settingsSignature) {
     for (const key of ['port', 'binary', 'antigravityBinary', 'backend', 'timeout']) form.elements[key].value = snapshot.settings[key] ?? '';
   }
   settingsSignature = settingsKey;
-  const editable = ['stopped', 'error'].includes(snapshot.state);
+  const editable = !settingsBusy && !locked;
   for (const input of form.querySelectorAll('input,select')) input.disabled = !editable;
-  $('saveSettings').disabled = !editable;
   backendFields();
 }
 function backendFields() {
   const form = $('settingsForm'); const agy = form.elements.backend.value === 'antigravity';
   $('codexBinaryField').hidden = agy; $('antigravityBinaryField').hidden = !agy;
 }
-$('settingsForm').elements.backend.addEventListener('change', backendFields);
-$('settingsForm').addEventListener('submit', async event => {
-  event.preventDefault(); if (!['stopped', 'error'].includes(snapshot.state)) return; const data = Object.fromEntries(new FormData(event.target));
-  try { snapshot = await call('configure', data); toast('設定を保存しました'); renderState(); } catch {}
-});
+function settingsStatus(message, error = false) {
+  $('settingsStatus').textContent = message;
+  $('settingsStatus').classList.toggle('settings-status-error', error);
+}
+async function applyFormSettings() {
+  clearTimeout(settingsTimer);
+  if (settingsBusy || !settingsDirty || !['stopped', 'error'].includes(snapshot.state)) return;
+  const form = $('settingsForm');
+  if (!form.checkValidity()) { settingsStatus('有効な設定値を入力してください。', true); return; }
+  const data = Object.fromEntries(new FormData(form));
+  const focused = form.contains(document.activeElement) ? document.activeElement : null;
+  const selection = focused?.type === 'text' ? [focused.selectionStart, focused.selectionEnd] : null;
+  settingsBusy = true; settingsStatus('設定を反映中…'); renderState();
+  try {
+    snapshot = await window.api.call('configure', data);
+    settingsDirty = false;
+    settingsStatus('変更を反映しました。');
+  } catch (err) {
+    settingsDirty = !Object.entries(data).every(([key, value]) => String(snapshot.settings[key]) === value);
+    settingsStatus(err.message.replace(/^Error invoking remote method '[^']+': Error: /, ''), true);
+  } finally {
+    settingsBusy = false;
+    if (!settingsDirty) settingsSignature = '';
+    renderState();
+    if (focused && !focused.disabled && document.activeElement === document.body) {
+      focused.focus(); if (selection) focused.setSelectionRange(...selection);
+    }
+  }
+}
+function settingsChanged(event, immediate) {
+  if (settingsBusy || !['stopped', 'error'].includes(snapshot.state) || event.target.disabled) return;
+  settingsDirty = true;
+  clearTimeout(settingsTimer);
+  backendFields();
+  if (event.target.name === 'backend') { $('testModel').replaceChildren(); $('testEffort').value = ''; $('testResult').hidden = true; }
+  settingsStatus('設定を反映中…'); renderPlayground();
+  if (immediate) applyFormSettings();
+  else settingsTimer = setTimeout(applyFormSettings, 400);
+}
+$('settingsForm').addEventListener('input', event => { if (event.target.tagName === 'INPUT') settingsChanged(event, false); });
+$('settingsForm').addEventListener('change', event => settingsChanged(event, true));
+$('settingsForm').addEventListener('submit', event => { event.preventDefault(); applyFormSettings(); });
 $('playgroundForm').addEventListener('submit', async event => {
-  event.preventDefault(); if (playgroundBusy) return; playgroundBusy = true; $('sendTest').disabled = true; $('sendTest').textContent = '生成中…';
+  event.preventDefault();
+  if (playgroundBusy || settingsDirty || settingsBusy || snapshot.state !== 'running' || !playgroundModels().some(model => model.model === $('testModel').value)) return;
+  playgroundBusy = true; $('sendTest').disabled = true; $('sendTest').textContent = '生成中…';
   const result = $('testResult'); result.hidden = false; result.classList.remove('error'); result.textContent = 'AI の応答を待っています…';
   try {
-    const messages = []; if ($('testSystem').value) messages.push({ role: 'system', content: $('testSystem').value }); messages.push({ role: 'user', content: $('testPrompt').value });
-    const response = await call('test-request', { model: $('testModel').value, messages });
+    const messages = [{ role: 'user', content: $('testPrompt').value }];
+    const effort = $('testEffort').value;
+    const response = await call('test-request', { model: $('testModel').value, messages,
+      ...(effort && snapshot.settings.backend !== 'antigravity' ? { reasoning_effort: effort } : {}) });
     result.textContent = response.choices[0].message.content;
   } catch (err) { result.classList.add('error'); result.textContent = err.message; }
   finally { playgroundBusy = false; renderState(); $('sendTest').textContent = '▷ リクエストを送信'; }
 });
 window.api.on('state', state => { snapshot = state; renderState(); });
-window.api.on('diagnostic', entry => { snapshot.diagnostics.push(entry); snapshot.diagnostics = snapshot.diagnostics.slice(-80); $('diagnostics').textContent = snapshot.diagnostics.map(d => `${d.time}\n${d.message}`).join('\n'); });
 window.api.on('log', row => { const index = rows.findIndex(r => r.id === row.id); if (index < 0) rows.unshift(row); else rows[index] = row; rows = rows.slice(0,300); render(); });
 window.api.on('reset', () => { rows = []; render(); });
 window.api.call('snapshot').then(data => { snapshot = data; rows = data.logs; renderState(); render(); }).catch(err => toast(err.message));

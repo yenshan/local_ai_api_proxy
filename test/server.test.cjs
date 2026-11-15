@@ -182,3 +182,54 @@ test('legacy default model and effort settings are ignored and removed on save',
   assert.equal(result.model, 'model-one');
   assert.equal(rpc.calls.find(c => c.method === 'turn/start').params.effort, undefined);
 });
+
+test('late model catalogs from the previous backend cannot replace current models', async t => {
+  const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'backend-model-test-'));
+  t.after(() => fs.rmSync(directory, { recursive: true, force: true }));
+  for (const backend of ['codex', 'antigravity']) {
+    const server = new LocalServer({ directory });
+    server.configure({ backend });
+    let complete;
+    const pending = new Promise(resolve => { complete = resolve; });
+    server.rpc = { call: () => pending, listModels: () => pending };
+    const refresh = server.refreshModels();
+    server.configure({ backend: backend === 'codex' ? 'antigravity' : 'codex' });
+    server.rpc = {};
+    const current = [{ model: 'current-model' }]; server.models = current;
+    complete(backend === 'codex' ? { data: [{ model: 'old-model' }], nextCursor: null } : [{ model: 'old-model' }]);
+    assert.equal(await refresh, current);
+    assert.equal(server.models, current);
+  }
+});
+
+test('all settings changes are rejected while running, starting or stopping', async t => {
+  const { server, directory, url } = await setup(t);
+  const original = { ...server.settings }; const httpServer = server.http; const rpc = server.rpc;
+  const saved = fs.readFileSync(path.join(directory, 'settings.json'), 'utf8');
+  for (const settings of [{ timeout: 90 }, { port: 8899 }, { backend: 'antigravity' }, { binary: '/new/codex' }, { antigravityBinary: '/new/agy' }]) {
+    await assert.rejects(server.applySettings(settings), /停止/);
+    assert.deepEqual(server.settings, original);
+  }
+  assert.equal(server.http, httpServer); assert.equal(server.rpc, rpc);
+  assert.equal(fs.readFileSync(path.join(directory, 'settings.json'), 'utf8'), saved);
+  assert.equal((await fetch(`${url}/health`)).status, 200);
+  for (const state of ['starting', 'stopping']) {
+    server.state = state;
+    await assert.rejects(server.applySettings({ timeout: 90 }), /停止/);
+  }
+  server.state = 'running';
+});
+test('settings auto-save while stopped and respect validation and update ordering', async t => {
+  const { server, directory } = await setup(t);
+  await server.stop();
+  await server.applySettings({ backend: 'antigravity', timeout: 90 });
+  assert.equal(server.state, 'stopped'); assert.equal(server.settings.backend, 'antigravity');
+  assert.deepEqual(server.models, []);
+  assert.equal(JSON.parse(fs.readFileSync(path.join(directory, 'settings.json'))).timeout, 90);
+  await assert.rejects(server.applySettings({ port: 8 }), /ポート/);
+  await Promise.all([server.applySettings({ timeout: 91 }), server.applySettings({ timeout: 92 })]);
+  assert.equal(server.settings.timeout, 92);
+  server.state = 'error';
+  await server.applySettings({ timeout: 60 });
+  assert.equal(server.settings.timeout, 60);
+});

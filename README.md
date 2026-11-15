@@ -31,10 +31,10 @@ Codex 実行ファイルは `/opt/homebrew/bin/codex`、`/usr/local/bin/codex`�
 ## Antigravity に切り替える
 
 1. ターミナルで `agy` を起動し、Antigravity にログインしてください。`agy models` でモデル一覧を確認できます。IDE 用の `antigravity` コマンドではなく、非対話実行に対応した **Antigravity CLI (`agy`)** が必要です。
-2. このアプリのサーバーを停止し、左サイドバーの「サーバー設定」の「AI バックエンド」で **Antigravity CLI** を選択して保存します。実行ファイルは `~/.local/bin/agy`、Homebrew、PATH から自動検出します。必要なら絶対パスを指定できます。
-3. サーバーを起動すると、モデル一覧と画面のバックエンド表示が切り替わります。Codex に戻すときも同じ手順です。
+2. サーバーを停止してから、左サイドバーの「サーバー設定」の「AI バックエンド」で **Antigravity CLI** を選択します。変更は自動保存されます。稼働中・起動中・停止処理中は、すべての設定項目を編集できません。実行ファイルは `~/.local/bin/agy`、Homebrew、PATH から自動検出します。必要なら絶対パスを指定できます。
+3. サーバーを起動すると、選択したバックエンドのモデル一覧が取得されます。Codex に戻すときも同じ手順です。
 
-Base URL は共通の `http://127.0.0.1:8787/v1` です。`/v1/models`、Chat Completions、Responses、SSE、JSON Schema 出力、使用量、中断・タイムアウトに対応します。モデルは Playground または API リクエストの `model` で選択してください。
+Base URL は共通の `http://127.0.0.1:8787/v1` です。`/v1/models`、Chat Completions、Responses、SSE、JSON Schema 出力、使用量、中断・タイムアウトに対応します。モデルは 接続テスト または API リクエストの `model` で選択してください。
 
 Antigravity のモデルは `agy models` から取得したスラッグをそのまま使います。推論強度は `-low` / `-medium` / `-high` などを含むモデル名で選んでください。モデル別の対応強度を CLI が列挙しないため、Antigravity 選択時の `reasoning_effort` / `reasoning.effort` は明示的なエラーになります。
 
@@ -121,7 +121,7 @@ for await (const chunk of stream) {
 
 ## ログと設定
 
-GUI のログ欄には、送信メッセージと AI の応答だけを時系列で表示します。生成中の応答も随時更新されます。モデル一覧取得やヘルスチェックは表示しません。「Playground」から動作確認用のリクエストを送れます。
+GUI のログ欄には、送信メッセージと AI の応答だけを時系列で表示します。生成中の応答も随時更新されます。モデル一覧取得やヘルスチェックは表示しません。左の「接続テスト」でモデルと推論レベルを選択し、動作確認用のリクエストを送れます。Codex ではモデルが対応する推論レベルを表示し、Antigravity では利用可能な同系列のモデル名に含まれる推論レベルを選択できます。
 
 - Mac アプリ: Electron の `userData`（通常 `~/Library/Application Support/Codex Local API/`。開発起動時はパッケージ名のフォルダになる場合があります）。保存先でログファイルを確認できます。
 - CLI: プロジェクト内の `.local-data/`。

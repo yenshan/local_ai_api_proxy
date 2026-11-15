@@ -29,19 +29,30 @@ class LocalServer extends EventEmitter {
   }
   snapshot() { return { state: this.state, error: this.error, settings: this.settings, models: this.models, account: this.account, diagnostics: this.diagnostics, logDirectory: this.store.directory, baseURL: `http://127.0.0.1:${this.settings.port}/v1` }; }
   emitState() { this.emit('state', this.snapshot()); }
-  configure(settings) {
-    if (this.state !== 'stopped' && this.state !== 'error') throw new Error('設定を変更する前にサーバーを停止してください');
+  validateSettings(settings) {
     const next = { ...this.settings };
     for (const key of Object.keys(DEFAULTS)) if (settings[key] !== undefined) next[key] = settings[key];
     next.port = Number(next.port); next.timeout = Number(next.timeout);
     if (!Number.isInteger(next.port) || next.port < 1024 || next.port > 65535) throw new Error('ポートは 1024〜65535 を指定してください');
     if (!Number.isFinite(next.timeout) || next.timeout < 10 || next.timeout > 3600) throw new Error('タイムアウトは 10〜3600 秒を指定してください');
     if (!['codex', 'antigravity'].includes(next.backend)) throw new Error('Invalid backend');
-    if (next.backend !== this.settings.backend) { this.models = []; this.account = null; }
-    for (const k of ['binary','antigravityBinary']) if (typeof next[k] !== 'string') throw new Error(`Invalid ${k}`);
-    this.settings = next;
+    for (const key of ['binary', 'antigravityBinary']) if (typeof next[key] !== 'string') throw new Error(`Invalid ${key}`);
+    return next;
+  }
+  commitSettings(next) {
     fs.writeFileSync(path.join(this.directory, 'settings.json'), JSON.stringify(next, null, 2), { mode: 0o600 });
+    if (next.backend !== this.settings.backend) { this.models = []; this.account = null; }
+    this.settings = next;
     this.emitState(); return this.snapshot();
+  }
+  configure(settings) {
+    if (this.state !== 'stopped' && this.state !== 'error') throw new Error('設定を変更する前にサーバーを停止してください');
+    return this.commitSettings(this.validateSettings(settings));
+  }
+  applySettings(settings) {
+    if (!['stopped', 'error'].includes(this.state)) return Promise.reject(new Error('設定を変更する前にサーバーを停止してください'));
+    this.settingsUpdate = (this.settingsUpdate || Promise.resolve()).catch(() => {}).then(() => this.configure(settings));
+    return this.settingsUpdate;
   }
   async start() {
     if (this.state === 'running') return this.snapshot();
@@ -85,15 +96,21 @@ class LocalServer extends EventEmitter {
     }
   }
   async refreshModels() {
-    if (!this.rpc) throw new Error('サーバーを起動してください');
-    if (this.settings.backend === 'antigravity') { this.models = await this.rpc.listModels(); this.emitState(); return this.models; }
+    const rpc = this.rpc; const backend = this.settings.backend;
+    if (!rpc) throw new Error('サーバーを起動してください');
+    if (backend === 'antigravity') {
+      const models = await rpc.listModels();
+      if (this.rpc !== rpc || this.settings.backend !== backend) return this.models;
+      this.models = models; this.emitState(); return models;
+    }
     const models = []; let cursor = null; const seen = new Set();
     do {
-      const page = await this.rpc.call('model/list', { limit: 100, cursor, includeHidden: false });
+      const page = await rpc.call('model/list', { limit: 100, cursor, includeHidden: false });
       models.push(...page.data); cursor = page.nextCursor;
       if (cursor && seen.has(cursor)) throw new Error('model/list returned a repeated cursor');
       if (cursor) seen.add(cursor);
     } while (cursor);
+    if (this.rpc !== rpc || this.settings.backend !== backend) return this.models;
     this.models = models; this.emitState(); return models;
   }
   async stop() {
