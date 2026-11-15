@@ -23,7 +23,7 @@ function populateSelect(select, models, current, includeDefault) {
 function renderState() {
   $('statusLabel').textContent = statusNames[snapshot.state];
   $('statusDot').className = `dot ${snapshot.state === 'running' ? 'running' : ''}`;
-  $('statusDot').style.background = snapshot.state === 'running' ? '#92d9a6' : snapshot.state === 'error' ? '#e6a38c' : '#78867e';
+  $('statusDot').style.background = snapshot.state === 'running' ? '#23845c' : snapshot.state === 'error' ? '#bd5437' : '#84948b';
   $('toggleServer').textContent = snapshot.state === 'running' ? 'サーバーを停止' : 'サーバーを起動';
   $('toggleServer').classList.toggle('stop', snapshot.state === 'running');
   $('toggleServer').disabled = pending || ['starting','stopping'].includes(snapshot.state);
@@ -38,17 +38,6 @@ function renderState() {
   $('serverError').hidden = !snapshot.error;
   $('serverError').textContent = snapshot.error || '';
   $('diagnostics').textContent = snapshot.diagnostics.map(d => `${d.time}\n${d.message}`).join('\n') || '診断ログはまだありません';
-}
-function renderMetrics() {
-  const generated = rows.filter(r => r.method === 'POST' && r.model);
-  const completed = generated.filter(r => r.status === 'completed' && r.duration !== undefined);
-  $('requestCount').textContent = rows.length;
-  $('totalMetric').replaceChildren(document.createTextNode(rows.length), el('small', '', 'requests'));
-  $('activeMetric').replaceChildren(document.createTextNode(rows.filter(r => r.status === 'running').length), el('small', '', 'active'));
-  $('latencyMetric').replaceChildren(document.createTextNode(completed.length ? (completed.reduce((n, r) => n + r.duration, 0) / completed.length / 1000).toFixed(1) : '—'), el('small', '', 'sec'));
-  $('errorMetric').replaceChildren(document.createTextNode(rows.filter(r => ['error','cancelled','interrupted'].includes(r.status)).length), el('small', '', 'errors'));
-  const ended = rows.filter(r => r.status !== 'running');
-  $('successMetric').textContent = ended.length ? `成功率 ${(ended.filter(r => r.status === 'completed').length / ended.length * 100).toFixed(0)}%` : 'リクエストを待機中';
 }
 function renderList() {
   const query = $('search').value.toLowerCase();
@@ -103,7 +92,7 @@ function renderDetail() {
   }
   panel.append(head, tabs, body); panel.scrollTop = wasAtBottom && row.status === 'running' ? panel.scrollHeight : oldScroll;
 }
-function render() { renderMetrics(); renderList(); renderDetail(); }
+function render() { $('requestCount').textContent = rows.length; renderList(); renderDetail(); }
 function openPlayground() {
   populateSelect($('testModel'), snapshot.models, snapshot.settings.model || snapshot.models.find(m => m.isDefault)?.model, false);
   $('sendTest').disabled = snapshot.state !== 'running'; $('playgroundDialog').showModal();

@@ -8,7 +8,7 @@
 <body>
   <div class="titlebar"><span id="backendTitle">LOCAL DEVELOPMENT / CODEX</span><span class="titlebar-right">API OBSERVATORY <span class="version">v1.0</span></span></div>
   <aside class="sidebar">
-    <div class="brand"><div class="brand-icon">⌘</div><div>Codex<span>Local API</span></div></div>
+    <div class="brand"><div class="brand-icon">⌘</div><div class="brand-title">Local Open AI <span>API server</span></div></div>
     <div class="nav-caption">WORKSPACE</div>
     <button class="nav active" id="showRequests"><span>▤</span> リクエスト <kbd id="requestCount">0</kbd></button>
     <button class="nav" id="showPlayground"><span>▷</span> Playground</button>
@@ -20,10 +20,9 @@
     </div>
   </aside>
   <main>
-    <header class="page-header"><div><div class="eyebrow">DEVELOPER TOOLS</div><h1>API モニター<span class="live-tag">LIVE</span></h1><p>アプリと AI のやりとりを、ひとつの画面で。</p></div><div class="server-controls"><div class="status-pill"><span class="dot" id="statusDot"></span><span id="statusLabel">停止中</span></div><button class="primary" id="toggleServer">サーバーを起動</button></div></header>
+    <header class="page-header"><div><div class="eyebrow">DEVELOPER TOOLS</div><h1>API モニター<span class="live-tag">LIVE</span></h1><p>アプリと AI のやりとりを、ひとつの画面で。</p></div></header>
     <div id="serverError" class="error-banner" hidden></div>
-    <section class="connection-bar"><div class="connection-label"><span class="connection-icon">⇄</span><div><small>OPENAI COMPATIBLE ENDPOINT</small><code id="baseURL">http://127.0.0.1:8787/v1</code></div><button class="icon-button" id="copyURL" title="エンドポイントをコピー">⧉</button></div><div class="connection-model"><span class="dot"></span><span id="modelSummary">モデル未取得</span><button class="text-button" id="refreshModels" title="モデルを再取得">↻</button></div></section>
-    <section class="metrics"><article><span>リクエスト総数</span><strong id="totalMetric">0<small>requests</small></strong><div class="metric-bottom">この画面に保存された通信</div></article><article><span>実行中</span><strong id="activeMetric">0<small>active</small></strong><div class="metric-bottom"><span class="tiny-dot"></span> リアルタイムで更新</div></article><article><span>平均応答時間</span><strong id="latencyMetric">—<small>sec</small></strong><div class="metric-bottom">生成リクエストの完了まで</div></article><article><span>エラー</span><strong id="errorMetric">0<small>errors</small></strong><div class="metric-bottom" id="successMetric">リクエストを待機中</div></article></section>
+    <section class="connection-bar"><div class="connection-label"><span class="connection-icon">⇄</span><div><small>OPENAI COMPATIBLE ENDPOINT</small><code id="baseURL">http://127.0.0.1:8787/v1</code></div><button class="icon-button" id="copyURL" title="エンドポイントをコピー">⧉</button></div><div class="connection-model"><span class="dot"></span><span id="modelSummary">モデル未取得</span><button class="text-button" id="refreshModels" title="モデルを再取得">↻</button></div><div class="server-controls"><div class="status-pill"><span class="dot" id="statusDot"></span><span id="statusLabel">停止中</span></div><button class="primary" id="toggleServer">サーバーを起動</button></div></section>
     <section class="activity">
       <div class="section-header"><div><h2>リクエストログ</h2><span>REQUEST ACTIVITY</span></div><div class="actions"><button class="quiet" id="exportLogs">↓ エクスポート</button><button class="quiet" id="clearLogs">クリア</button></div></div>
       <div class="toolbar"><div class="filter-group"><button class="filter selected" data-filter="all">すべて</button><button class="filter" data-filter="running">実行中</button><button class="filter" data-filter="error">エラー</button></div><input id="search" type="search" placeholder="モデル、パス、メッセージを検索…" aria-label="ログを検索"><span class="auto-update"><span class="dot"></span> 自動更新</span></div>
