@@ -43,7 +43,7 @@ app.whenReady().then(async () => {
   });
   function createWindow() {
     window = new BrowserWindow({ width: 1380, height: 920, minWidth: 1040, minHeight: 700,
-      title: 'Codex Local API', backgroundColor: '#f5f8f6', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 20 },
+      title: 'Codex Local API', backgroundColor: '#f5f8f6', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 14 },
       webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, backgroundThrottling: false } });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());

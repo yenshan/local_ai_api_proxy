@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let snapshot = { state: 'stopped', settings: {}, models: [] };
-let rows = []; let pending = false; let playgroundBusy = false; let toastTimer;
+let rows = []; let clearingLogs = false; let pending = false; let playgroundBusy = false; let toastTimer;
 let settingsSignature = '';
 let settingsDirty = false; let settingsBusy = false; let settingsTimer; let settingsLocked = false;
 const statusNames = { stopped: '停止中', starting: '起動中', running: '稼働中', stopping: '停止中…', error: '接続エラー' };
@@ -90,7 +90,11 @@ function message(role, value, isStreaming = false) {
   return block;
 }
 const communicationNodes = new Map();
+const logDateFormat = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 function render() {
+  const activeLogs = rows.some(row => row.status === 'running');
+  $('clearLogs').disabled = clearingLogs || activeLogs || !rows.length;
+  $('clearLogs').title = activeLogs ? '通信の完了後にクリアできます' : '保存済みの通信ログをすべてクリア';
   const panel = $('communicationLog');
   const atBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 50;
   const oldScroll = panel.scrollTop;
@@ -105,6 +109,11 @@ function render() {
     if (node.logRow === row) continue;
     node.logRow = row;
     node.replaceChildren();
+    const date = new Date(row.time);
+    if (Number.isFinite(date.getTime())) {
+      const time = el('time', 'communication-time', logDateFormat.format(date));
+      time.dateTime = date.toISOString(); node.append(time);
+    }
     if (row.request.instructions) node.append(message('system', row.request.instructions));
     const messages = Array.isArray(row.request.messages) ? row.request.messages : (Array.isArray(row.request.input) ? row.request.input : [{ role: 'user', content: row.request.input }]);
     for (const entry of messages) if (entry && contentText(entry.content)) node.append(message(entry.role, entry.content));
@@ -116,6 +125,12 @@ function render() {
 click('toggleServer', async () => {
   pending = true; renderState();
   try { snapshot = await call(snapshot.state === 'running' ? 'stop' : 'start'); } finally { pending = false; renderState(); }
+});
+click('clearLogs', async () => {
+  if ($('clearLogs').disabled) return;
+  clearingLogs = true; render();
+  try { await call('clear'); toast('通信ログをクリアしました'); }
+  finally { clearingLogs = false; render(); }
 });
 click('copyURL', async () => { await navigator.clipboard.writeText(snapshot.baseURL); toast('エンドポイントをコピーしました'); });
 click('refreshModels', async () => { await call('models'); toast('モデル一覧を更新しました'); });
