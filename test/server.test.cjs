@@ -164,3 +164,21 @@ test('official OpenAI JavaScript SDK consumes models, chat, and Responses stream
   const events = client.responses.stream({ model: 'model-one', input: 'hello' });
   const final = await events.finalResponse(); assert.equal(final.output_text, 'hello world'); assert.equal(final.status, 'completed');
 });
+
+test('legacy default model and effort settings are ignored and removed on save', async t => {
+  const { server, directory, post } = await setup(t);
+  await server.stop();
+  fs.writeFileSync(path.join(directory, 'settings.json'), JSON.stringify({ ...server.settings, model: 'model-two', effort: 'low' }));
+  const rpc = new FakeRPC();
+  const reloaded = new LocalServer({ directory, rpcFactory: () => rpc });
+  t.after(() => reloaded.stop());
+  assert.equal(reloaded.settings.model, undefined);
+  assert.equal(reloaded.settings.effort, undefined);
+  reloaded.configure({ model: 'model-two', effort: 'low' });
+  const saved = JSON.parse(fs.readFileSync(path.join(directory, 'settings.json')));
+  assert.ok(!('model' in saved)); assert.ok(!('effort' in saved));
+  await reloaded.start();
+  const result = await (await post(body)).json();
+  assert.equal(result.model, 'model-one');
+  assert.equal(rpc.calls.find(c => c.method === 'turn/start').params.effort, undefined);
+});

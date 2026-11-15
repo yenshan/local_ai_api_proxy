@@ -8,7 +8,7 @@ const { AntigravityBackend } = require('./antigravity.cjs');
 const { LogStore } = require('./store.cjs');
 const { APIError, normalize, chatUsage, responseObject } = require('./protocol.cjs');
 
-const DEFAULTS = { port: 8787, backend: 'codex', antigravityBinary: '', binary: '', model: '', effort: '', timeout: 180 };
+const DEFAULTS = { port: 8787, backend: 'codex', antigravityBinary: '', binary: '', timeout: 180 };
 const BASE = 'You are an assistant behind a local text-generation API. Answer directly. Do not inspect local files, run commands, browse the web, use skills, invoke tools, or perform actions. Only generate a reply to the supplied conversation.';
 
 class LocalServer extends EventEmitter {
@@ -19,7 +19,10 @@ class LocalServer extends EventEmitter {
     this.rpcFactory = rpcFactory || (opts => new CodexRPC(opts));
     this.antigravityFactory = antigravityFactory || (opts => new AntigravityBackend(opts));
     this.settings = { ...DEFAULTS }; this.models = []; this.state = 'stopped'; this.active = new Map(); this.diagnostics = [];
-    try { Object.assign(this.settings, JSON.parse(fs.readFileSync(path.join(this.directory, 'settings.json')))); } catch {}
+    try {
+      const saved = JSON.parse(fs.readFileSync(path.join(this.directory, 'settings.json')));
+      for (const key of Object.keys(DEFAULTS)) if (saved[key] !== undefined) this.settings[key] = saved[key];
+    } catch {}
     this.store.on('change', row => this.emit('log', row));
     this.store.on('reset', () => this.emit('reset'));
     this.store.on('storageError', message => { this.error = `ログ保存失敗: ${message}`; this.emitState(); });
@@ -34,8 +37,8 @@ class LocalServer extends EventEmitter {
     if (!Number.isInteger(next.port) || next.port < 1024 || next.port > 65535) throw new Error('ポートは 1024〜65535 を指定してください');
     if (!Number.isFinite(next.timeout) || next.timeout < 10 || next.timeout > 3600) throw new Error('タイムアウトは 10〜3600 秒を指定してください');
     if (!['codex', 'antigravity'].includes(next.backend)) throw new Error('Invalid backend');
-    if (next.backend !== this.settings.backend) { next.model = ''; next.effort = ''; this.models = []; this.account = null; }
-    for (const k of ['binary','antigravityBinary','model','effort']) if (typeof next[k] !== 'string') throw new Error(`Invalid ${k}`);
+    if (next.backend !== this.settings.backend) { this.models = []; this.account = null; }
+    for (const k of ['binary','antigravityBinary']) if (typeof next[k] !== 'string') throw new Error(`Invalid ${k}`);
     this.settings = next;
     fs.writeFileSync(path.join(this.directory, 'settings.json'), JSON.stringify(next, null, 2), { mode: 0o600 });
     this.emitState(); return this.snapshot();
@@ -147,10 +150,10 @@ class LocalServer extends EventEmitter {
         this.store.update(row, { request: body });
         kind = route.endsWith('/responses') ? 'responses' : 'chat';
         const input = normalize(body, kind);
-        const model = body.model || this.settings.model || this.models.find(m => m.isDefault)?.model || this.models[0]?.model;
+        const model = body.model || this.models.find(m => m.isDefault)?.model || this.models[0]?.model;
         const entry = this.models.find(m => m.model === model || m.id === model);
         if (!entry) throw new APIError(`Unknown model: ${model}. Query GET /v1/models.`, 404, 'model', 'model_not_found');
-        const effort = input.effort || this.settings.effort || undefined;
+        const effort = input.effort || undefined;
         if (effort && !entry.supportedReasoningEfforts.some(e => e.reasoningEffort === effort)) throw new APIError(`Unsupported reasoning effort: ${effort}`, 400, 'reasoning_effort');
         this.store.update(row, { model: entry.model, stream: input.stream });
         context = { id: `${kind === 'chat' ? 'chatcmpl' : 'resp'}_${row.id.replaceAll('-', '')}`, itemId: `msg_${row.id.replaceAll('-', '')}`, model: entry.model, created: Math.floor(started / 1000), body };

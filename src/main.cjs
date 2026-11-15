@@ -77,20 +77,18 @@ app.whenReady().then(async () => {
         if (!JSON.parse(response.output[0].content[0].text).connected) throw new Error('Structured response failed');
         const stream = await post('responses', { stream: true, input: 'Reply with exactly: ready' });
         if (!stream.includes('event: response.completed') || !stream.includes('ready')) throw new Error(`Responses stream failed: ${stream}`);
-        await window.webContents.executeJavaScript(`document.querySelector('#showPlayground').click();`);
+        await window.webContents.executeJavaScript(`document.querySelector('#testPrompt').focus();`);
         await new Promise(resolve => setTimeout(resolve, 100));
-        await window.webContents.executeJavaScript(`if (!document.querySelector('#playgroundDialog').open) throw new Error('Playground did not open'); document.querySelector('#playgroundDialog').close(); document.querySelector('#showSettings').click();`);
+        await window.webContents.executeJavaScript(`if (document.activeElement !== document.querySelector('#testPrompt')) throw new Error('Playground did not receive focus');`);
         await new Promise(resolve => setTimeout(resolve, 100));
-        await window.webContents.executeJavaScript(`if (!document.querySelector('#settingsDialog').open) throw new Error('Settings did not open'); document.querySelector('#settingsDialog').close();`);
         console.log('REAL_INFERENCE_OK', JSON.stringify({ chatStream: true, responsesJSONSchema: true, responsesStream: true, usage: response.usage }));
       }
       await window.webContents.executeJavaScript(`(async () => {
-        document.querySelector('#showSettings').click();
         await new Promise(resolve => setTimeout(resolve, 100));
         const form = document.querySelector('#settingsForm');
         if (!form.elements.backend.disabled) throw new Error('Backend selector must be disabled while running');
         if (!Array.from(form.elements.backend.options).some(o => o.value === 'antigravity')) throw new Error('Antigravity option missing');
-        document.querySelector('#settingsDialog').close();
+        if (!form.closest('.sidebar')) throw new Error('Settings must be in the sidebar');
       })()`);
       window.show(); window.focus();
       await window.webContents.executeJavaScript(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);

@@ -1,6 +1,6 @@
 # Codex Local API
 
-Codex app-server または Antigravity CLI を使う、ローカルの OpenAI API 互換テストサーバーです。Mac アプリで起動・停止し、アプリから送信されたメッセージ、応答、JSON、Codex イベントを確認できます。推論は Codex の接続先で実行されます。オフラインで動くモデルサーバーではありません。
+Codex app-server または Antigravity CLI を使う、ローカルの OpenAI API 互換テストサーバーです。Mac アプリで起動・停止し、アプリから送信されたメッセージと AI の応答を確認できます。推論は Codex の接続先で実行されます。オフラインで動くモデルサーバーではありません。
 
 ## Mac アプリを使う
 
@@ -9,6 +9,8 @@ Codex app-server または Antigravity CLI を使う、ローカルの OpenAI AP
 ```sh
 ./start.sh
 ```
+
+左サイドバーの右端をドラッグすると幅を調整できます。幅は次回起動時にも保持し、境界のダブルクリックで初期幅に戻せます。キーボードでは境界にフォーカスして左右キーで調整できます。
 
 別のディレクトリから絶対パスで実行することもできます。`./start.sh --packaged` でビルド済みアプリを起動できます。
 
@@ -24,15 +26,15 @@ Codex 実行ファイルは `/opt/homebrew/bin/codex`、`/usr/local/bin/codex`�
 
 既定の接続先は **`http://127.0.0.1:8787/v1`** です。テスト対象アプリの Base URL に設定してください。API キー入力が必須のクライアントでは `local` など任意の文字列を使えます。サーバーは API キーによる認証を行いません。
 
-モデルは起動時と `/v1/models` アクセス時に、Codex app-server の `model/list` をページ送りして取得します。GUI の更新ボタンでも再取得できます。モデルカタログへの掲載と実際の利用権限は別で、利用可否はアカウントや接続先に依存します。モデル省略時は GUI で保存したモデル、Codex の既定モデル、一覧の先頭の順に選びます。
+モデルは起動時と `/v1/models` アクセス時に、Codex app-server の `model/list` をページ送りして取得します。GUI の更新ボタンでも再取得できます。モデルカタログへの掲載と実際の利用権限は別で、利用可否はアカウントや接続先に依存します。モデル省略時はバックエンドが既定として返したモデル、一覧の先頭の順に選びます。
 
 ## Antigravity に切り替える
 
 1. ターミナルで `agy` を起動し、Antigravity にログインしてください。`agy models` でモデル一覧を確認できます。IDE 用の `antigravity` コマンドではなく、非対話実行に対応した **Antigravity CLI (`agy`)** が必要です。
-2. このアプリのサーバーを停止し、「サーバー設定」→「AI バックエンド」で **Antigravity CLI** を選択して保存します。実行ファイルは `~/.local/bin/agy`、Homebrew、PATH から自動検出します。必要なら絶対パスを指定できます。
+2. このアプリのサーバーを停止し、左サイドバーの「サーバー設定」の「AI バックエンド」で **Antigravity CLI** を選択して保存します。実行ファイルは `~/.local/bin/agy`、Homebrew、PATH から自動検出します。必要なら絶対パスを指定できます。
 3. サーバーを起動すると、モデル一覧と画面のバックエンド表示が切り替わります。Codex に戻すときも同じ手順です。
 
-Base URL は共通の `http://127.0.0.1:8787/v1` です。`/v1/models`、Chat Completions、Responses、SSE、JSON Schema 出力、使用量、中断・タイムアウトに対応します。切り替え時は既定モデルと推論強度をリセットします。切り替え後にモデル一覧を取得し、必要なら停止して既定モデルを設定してください。
+Base URL は共通の `http://127.0.0.1:8787/v1` です。`/v1/models`、Chat Completions、Responses、SSE、JSON Schema 出力、使用量、中断・タイムアウトに対応します。モデルは Playground または API リクエストの `model` で選択してください。
 
 Antigravity のモデルは `agy models` から取得したスラッグをそのまま使います。推論強度は `-low` / `-medium` / `-high` などを含むモデル名で選んでください。モデル別の対応強度を CLI が列挙しないため、Antigravity 選択時の `reasoning_effort` / `reasoning.effort` は明示的なエラーになります。
 
@@ -119,15 +121,14 @@ for await (const chunk of stream) {
 
 ## ログと設定
 
-GUI ではメッセージ、Request、Response、バックエンドごとの events のタブを表示します。モデル・本文・パスで検索でき、JSON エクスポートとログのクリアにも対応しています。「Playground」から動作確認用のリクエストを送れます。
+GUI のログ欄には、送信メッセージと AI の応答だけを時系列で表示します。生成中の応答も随時更新されます。モデル一覧取得やヘルスチェックは表示しません。「Playground」から動作確認用のリクエストを送れます。
 
-- Mac アプリ: Electron の `userData`（通常 `~/Library/Application Support/Codex Local API/`。開発起動時はパッケージ名のフォルダになる場合があります）。GUI の「ログフォルダを開く」で確認できます。
+- Mac アプリ: Electron の `userData`（通常 `~/Library/Application Support/Codex Local API/`。開発起動時はパッケージ名のフォルダになる場合があります）。保存先でログファイルを確認できます。
 - CLI: プロジェクト内の `.local-data/`。
 - `CODEX_LOCAL_DATA` 環境変数で保存先を変更可能。
-- `settings.json`: バックエンド、ポート、各 CLI パス、既定モデル、推論の強度、タイムアウト。
+- `settings.json`: バックエンド、ポート、各 CLI パス、タイムアウト。
 - `logs/requests.jsonl`: 完了した通信を JSONL 保存。20 MiB を超えると `.1` にローテーション。GUI は直近 300 件を保持し、再起動時はファイル末尾の最大 8 MiB を読みます。
 - 保存される内容は本文・応答・エラー・使用量・Codex イベントです。Authorization ヘッダーや Codex の認証情報は記録しません。本文中に含めた値はそのまま保存されます。
-- GUI の「クリア」は表示中のログと JSONL、ローテーション済み JSONL を削除します。生成中はクリアできません。
 
 待ち受けは IPv4 の `127.0.0.1` 固定です。Codex はアプリ用の空ディレクトリで、read-only sandbox と approvalPolicy=never を指定して起動します。生成 thread のシェル・Web 検索・Apps と、ユーザー設定に含まれる MCP サーバーを無効化します。ユーザーの Codex 設定ファイルを書き換えることはありません。
 

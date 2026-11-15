@@ -7,31 +7,22 @@
 </head>
 <body>
   <div class="titlebar"><span id="backendTitle">LOCAL DEVELOPMENT / CODEX</span><span class="titlebar-right">API OBSERVATORY <span class="version">v1.0</span></span></div>
-  <aside class="sidebar">
+  <aside class="sidebar" id="sidebar">
     <div class="brand"><div class="brand-icon">⌘</div><div class="brand-title">Local Open AI <span>API server</span></div></div>
-    <div class="nav-caption">WORKSPACE</div>
-    <button class="nav active" id="showRequests"><span>▤</span> リクエスト <kbd id="requestCount">0</kbd></button>
-    <button class="nav" id="showPlayground"><span>▷</span> Playground</button>
-    <button class="nav" id="showSettings"><span>⚙</span> サーバー設定</button>
-    <div class="sidebar-bottom">
-      <div class="engine"><span class="engine-symbol">↳</span><div><span id="engineLabel">Codex app-server</span><small id="accountLabel">ローカルプロセス</small></div></div>
-      <div class="local-note"><span class="dot"></span> 127.0.0.1 のみで待ち受け</div>
-      <button class="text-button" id="openLogs">ログフォルダを開く ↗</button>
-    </div>
+    <form id="settingsForm"><div class="settings-fields"><div class="dialog-heading"><div class="eyebrow">CONFIGURATION</div><h2>サーバー設定</h2></div><p class="dialog-description">選択した CLI のログイン情報を使用します。切り替えは停止中に行えます。</p><label>AI バックエンド<select name="backend"><option value="codex">Codex app-server</option><option value="antigravity">Antigravity CLI</option></select></label><label>待ち受けポート<input name="port" type="number" min="1024" max="65535" required></label><label id="codexBinaryField">Codex 実行ファイル<input name="binary" placeholder="自動検出（/opt/homebrew/bin/codex など）"></label><label id="antigravityBinaryField" hidden>Antigravity 実行ファイル<input name="antigravityBinary" placeholder="自動検出（~/.local/bin/agy など）"></label><label>生成タイムアウト（秒）<input name="timeout" type="number" min="10" max="3600" required></label><div class="helper">モデルや推論の強度は API リクエストで指定します。<br>Antigravity の推論強度はモデル名で選択してください。<br>API キーは任意の文字列を指定できます（例: local）。</div><details><summary>バックエンド診断ログ</summary><pre id="diagnostics"></pre></details></div><div class="dialog-footer"><button class="primary" type="submit" id="saveSettings">設定を保存</button></div></form>
   </aside>
-  <main>
+  <div id="sidebarResizer" class="sidebar-resizer" role="separator" tabindex="0" aria-label="サイドバーの幅を調整" aria-orientation="vertical" aria-controls="sidebar mainContent" aria-valuemin="240" aria-valuemax="520" aria-valuenow="320" title="ドラッグで幅を調整・ダブルクリックで初期幅に戻す"></div>
+  <main id="mainContent">
     <header class="page-header"><div><div class="eyebrow">DEVELOPER TOOLS</div><h1>API モニター<span class="live-tag">LIVE</span></h1><p>アプリと AI のやりとりを、ひとつの画面で。</p></div></header>
     <div id="serverError" class="error-banner" hidden></div>
     <section class="connection-bar"><div class="connection-label"><span class="connection-icon">⇄</span><div><small>OPENAI COMPATIBLE ENDPOINT</small><code id="baseURL">http://127.0.0.1:8787/v1</code></div><button class="icon-button" id="copyURL" title="エンドポイントをコピー">⧉</button></div><div class="connection-model"><span class="dot"></span><span id="modelSummary">モデル未取得</span><button class="text-button" id="refreshModels" title="モデルを再取得">↻</button></div><div class="server-controls"><div class="status-pill"><span class="dot" id="statusDot"></span><span id="statusLabel">停止中</span></div><button class="primary" id="toggleServer">サーバーを起動</button></div></section>
-    <section class="activity">
-      <div class="section-header"><div><h2>リクエストログ</h2><span>REQUEST ACTIVITY</span></div><div class="actions"><button class="quiet" id="exportLogs">↓ エクスポート</button><button class="quiet" id="clearLogs">クリア</button></div></div>
-      <div class="toolbar"><div class="filter-group"><button class="filter selected" data-filter="all">すべて</button><button class="filter" data-filter="running">実行中</button><button class="filter" data-filter="error">エラー</button></div><input id="search" type="search" placeholder="モデル、パス、メッセージを検索…" aria-label="ログを検索"><span class="auto-update"><span class="dot"></span> 自動更新</span></div>
-      <div class="log-workspace"><div class="request-list" id="requestList"></div><div class="detail" id="detailPanel"><div class="empty-detail"><div class="empty-symbol">⌁</div><h3>通信の中身を、ここで確認。</h3><p>リクエストを選ぶと、メッセージや JSON、<br>生成中のイベントが表示されます。</p><button class="quiet" id="emptyPlayground">▷ Playground で試す</button></div></div></div>
-      <footer class="activity-footer"><span id="visibleCount">0 件のリクエスト</span><span>ログはこの Mac に保存されます<span class="dot"></span></span></footer>
-    </section>
+    <div class="workspace">
+      <aside class="playground-panel" aria-label="Playground"><form id="playgroundForm"><div class="dialog-heading"><div class="eyebrow">QUICK TEST</div><h2>Playground</h2></div><p class="dialog-description">ローカル API にリクエストを送り、接続を確認します。</p><label>モデル<select id="testModel" required></select></label><label>System メッセージ<input id="testSystem" placeholder="例: 簡潔な日本語で答えてください。"></label><label>メッセージ<textarea id="testPrompt" rows="5" required>こんにちは。接続テストです。ひとことで返事をしてください。</textarea></label><div id="testResult" class="test-result" hidden></div><div class="dialog-footer"><button class="primary" id="sendTest" type="submit">▷ リクエストを送信</button></div></form></aside>
+      <section class="activity" aria-label="通信内容"><div id="communicationLog" class="communication-log" role="log" aria-label="送信メッセージとAIの応答"></div></section>
+    </div>
   </main>
-  <dialog id="settingsDialog"><form id="settingsForm"><div class="dialog-heading"><div class="eyebrow">CONFIGURATION</div><h2>サーバー設定</h2><button type="button" class="close-dialog" aria-label="閉じる">×</button></div><p class="dialog-description">選択した CLI のログイン情報を使用します。切り替えは停止中に行えます。</p><label>AI バックエンド<select name="backend"><option value="codex">Codex app-server</option><option value="antigravity">Antigravity CLI</option></select></label><label>待ち受けポート<input name="port" type="number" min="1024" max="65535" required></label><label id="codexBinaryField">Codex 実行ファイル<input name="binary" placeholder="自動検出（/opt/homebrew/bin/codex など）"></label><label id="antigravityBinaryField" hidden>Antigravity 実行ファイル<input name="antigravityBinary" placeholder="自動検出（~/.local/bin/agy など）"></label><label>既定のモデル<select name="model"><option value="">バックエンドの既定モデル</option></select></label><label>推論の強度<select name="effort"><option value="">モデルの既定値</option></select></label><label>生成タイムアウト（秒）<input name="timeout" type="number" min="10" max="3600" required></label><div class="helper">アプリから送る model / reasoning_effort を優先します。<br>Antigravity の推論強度はモデル名で選択してください。<br>API キーは任意の文字列を指定できます（例: local）。</div><details><summary>バックエンド診断ログ</summary><pre id="diagnostics"></pre></details><div class="dialog-footer"><button type="button" class="quiet close-dialog">閉じる</button><button class="primary" type="submit" id="saveSettings">設定を保存</button></div></form></dialog>
-  <dialog id="playgroundDialog"><form id="playgroundForm"><div class="dialog-heading"><div class="eyebrow">QUICK TEST</div><h2>Playground</h2><button type="button" class="close-dialog" aria-label="閉じる">×</button></div><p class="dialog-description">ローカル API にリクエストを送り、接続を確認します。</p><label>モデル<select id="testModel" required></select></label><label>System メッセージ<input id="testSystem" placeholder="例: 簡潔な日本語で答えてください。"></label><label>メッセージ<textarea id="testPrompt" rows="5" required>こんにちは。接続テストです。ひとことで返事をしてください。</textarea></label><div id="testResult" class="test-result" hidden></div><div class="dialog-footer"><button type="button" class="quiet close-dialog">閉じる</button><button class="primary" id="sendTest" type="submit">▷ リクエストを送信</button></div></form></dialog>
+
+
   <div id="toast" class="toast" hidden></div>
   <script src="app.js"></script>
 </body></html>
