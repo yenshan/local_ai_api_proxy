@@ -3,13 +3,13 @@
 <head>
   <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; object-src 'none'; base-uri 'none'">
-  <title>Codex Local API</title><link rel="stylesheet" href="style.css">
+  <title>Local AI API Proxy</title><link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="titlebar" aria-hidden="true"></div>
   <aside class="sidebar" id="sidebar">
-    <div class="brand"><div class="brand-icon">⌘</div><div class="brand-title" title="Local Open AI API Server">Local Open AI API Server</div><button type="button" class="sidebar-toggle" id="toggleSidebar" aria-controls="settingsForm" aria-expanded="true" aria-label="サイドバーを閉じる" title="サイドバーを閉じる"><span id="sidebarToggleIcon" aria-hidden="true">‹</span></button></div>
-    <form id="settingsForm"><div class="settings-fields"><div class="dialog-heading"><div class="eyebrow">CONFIGURATION</div><h2>サーバー設定</h2></div><p class="dialog-description">設定はサーバー停止中に変更できます。変更は自動で反映されます。</p><label>AI バックエンド<select name="backend"><option value="codex">Codex app-server</option><option value="antigravity">Antigravity CLI</option></select></label><label>待ち受けポート<input name="port" type="number" min="1024" max="65535" required></label><label id="codexBinaryField">Codex 実行ファイル<input name="binary" placeholder="自動検出（/opt/homebrew/bin/codex など）"></label><label id="antigravityBinaryField" hidden>Antigravity 実行ファイル<input name="antigravityBinary" placeholder="自動検出（~/.local/bin/agy など）"></label><label>生成タイムアウト（秒）<input name="timeout" type="number" min="10" max="3600" required></label><div class="helper">モデルと推論レベルは接続テストまたは API リクエストで指定します。<br>Antigravity の推論強度はモデル名で選択してください。<br>API キーは任意の文字列を指定できます（例: local）。</div></div><p id="settingsStatus" class="helper" role="status">変更は自動で反映されます。</p></form>
+    <div class="brand"><div class="brand-icon">⌘</div><div class="brand-title" title="Local AI API Proxy">Local AI API Proxy</div><button type="button" class="sidebar-toggle" id="toggleSidebar" aria-controls="settingsForm" aria-expanded="true" aria-label="サイドバーを閉じる" title="サイドバーを閉じる"><span id="sidebarToggleIcon" aria-hidden="true">‹</span></button></div>
+    <form id="settingsForm"><div class="settings-fields"><div class="dialog-heading"><div class="eyebrow">CONFIGURATION</div><h2>サーバー設定</h2></div><p class="dialog-description">設定はサーバー停止中に変更できます。変更は自動で反映されます。</p><label>AI バックエンド<select name="backend"><option value="codex">Codex app-server</option><option value="antigravity">Antigravity CLI</option></select></label><label>待ち受けポート<input name="port" type="number" min="1024" max="65535" required></label><label id="codexBinaryField">Codex 実行ファイル<input name="binary" placeholder="自動検出（/opt/homebrew/bin/codex など）"></label><label id="antigravityBinaryField" hidden>Antigravity 実行ファイル<input name="antigravityBinary" placeholder="自動検出（~/.local/bin/agy など）"></label><label>生成タイムアウト（秒）<input name="timeout" type="number" min="10" max="3600" required></label></div><p id="settingsStatus" class="helper" role="status">変更は自動で反映されます。</p></form>
   </aside>
   <main id="mainContent">
     <header class="page-header"><h1>通信モニター<span class="live-tag">LIVE</span></h1></header>

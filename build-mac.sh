@@ -17,9 +17,11 @@ for tool in node npm; do
   fi
 done
 
+APP_NAME="$(node -p 'require("./package.json").build.productName')"
+
 case "$(node -p 'process.arch')" in
-  arm64) APP_PATH="$PROJECT_DIR/dist/mac-arm64/Codex Local API.app" ;;
-  x64) APP_PATH="$PROJECT_DIR/dist/mac/Codex Local API.app" ;;
+  arm64) APP_PATH="$PROJECT_DIR/dist/mac-arm64/${APP_NAME}.app" ;;
+  x64) APP_PATH="$PROJECT_DIR/dist/mac/${APP_NAME}.app" ;;
   *) echo "未対応の Node.js アーキテクチャです。" >&2; exit 1 ;;
 esac
 

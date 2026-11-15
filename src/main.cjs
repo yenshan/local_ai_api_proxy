@@ -3,10 +3,15 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { LocalServer } = require('./server.cjs');
 const { exportCommunicationLogs } = require('./export.cjs');
+// Keep the existing settings, logs and Chromium preferences after renaming.
+const legacyUserData = path.join(app.getPath('appData'), app.isPackaged ? 'Codex Local API' : 'codex-local-api');
+fs.mkdirSync(legacyUserData, { recursive: true });
+app.setPath('userData', legacyUserData);
+app.setPath('sessionData', legacyUserData);
 let window; let server; let exiting = false;
 if (process.argv.includes('--smoke')) {
   process.env.CODEX_LOCAL_SMOKE = '1';
-  const smokeRoot = app.isPackaged ? path.join(app.getPath('temp'), 'codex-local-api-smoke') : path.join(__dirname, '..', '.local-data');
+  const smokeRoot = app.isPackaged ? path.join(app.getPath('temp'), 'local-ai-api-proxy-smoke') : path.join(__dirname, '..', '.local-data');
   process.env.CODEX_LOCAL_DATA ||= path.join(smokeRoot, 'gui-smoke');
   process.env.CODEX_LOCAL_SCREENSHOT ||= path.join(smokeRoot, 'gui-smoke.png');
 }
@@ -40,7 +45,7 @@ app.whenReady().then(async () => {
   });
   function createWindow() {
     window = new BrowserWindow({ width: 1380, height: 920, minWidth: 1040, minHeight: 700,
-      title: 'Codex Local API', backgroundColor: '#f5f8f6', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 14 },
+      title: 'Local AI API Proxy', backgroundColor: '#f5f8f6', titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 14 },
       webPreferences: { preload: path.join(__dirname, 'preload.cjs'), nodeIntegration: false, contextIsolation: true, sandbox: true, backgroundThrottling: false } });
     window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
     window.webContents.on('will-navigate', event => event.preventDefault());

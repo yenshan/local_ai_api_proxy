@@ -42,7 +42,7 @@ class CodexRPC extends EventEmitter {
         else this.send({ id: msg.id, error: { code: -32601, message: 'Interactive tools are unavailable in the local API bridge' } });
       } else this.emit('notification', msg);
     });
-    await this.call('initialize', { clientInfo: { name: 'codex_local_api', title: 'Codex Local API', version: '1.0.0' } });
+    await this.call('initialize', { clientInfo: { name: 'codex_local_api', title: 'Local AI API Proxy', version: '1.0.0' } });
     this.send({ method: 'initialized', params: {} });
   }
   send(message) {

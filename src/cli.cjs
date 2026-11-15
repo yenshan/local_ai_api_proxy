@@ -9,5 +9,5 @@ server.configure({
 });
 server.on('log', row => { if (row.duration !== undefined) console.log(`${row.time} ${row.method} ${row.path} ${row.status} ${row.duration}ms`); });
 server.on('state', state => { if (state.state === 'error') console.error(state.error); });
-server.start().then(state => console.log(`Codex Local API: ${state.baseURL}\nModels: ${state.models.map(m => m.model).join(', ')}\nLogs: ${state.logDirectory}`)).catch(err => { console.error(err.message); process.exitCode = 1; });
+server.start().then(state => console.log(`Local AI API Proxy: ${state.baseURL}\nModels: ${state.models.map(m => m.model).join(', ')}\nLogs: ${state.logDirectory}`)).catch(err => { console.error(err.message); process.exitCode = 1; });
 for (const signal of ['SIGINT','SIGTERM']) process.on(signal, () => server.stop().finally(() => process.exit()));

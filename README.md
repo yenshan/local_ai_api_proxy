@@ -1,4 +1,4 @@
-# Codex Local API
+# Local AI API Proxy
 
 Codex app-server または Antigravity CLI を使う、ローカルの OpenAI API 互換テストサーバーです。Mac アプリで起動・停止し、アプリから送信されたメッセージと AI の応答を確認できます。推論は Codex の接続先で実行されます。オフラインで動くモデルサーバーではありません。
 
@@ -14,7 +14,7 @@ Codex app-server または Antigravity CLI を使う、ローカルの OpenAI AP
 
 別のディレクトリから絶対パスで実行することもできます。`./start.sh --packaged` でビルド済みアプリを起動できます。
 
-この環境用に作成したアプリ: `dist/mac-arm64/Codex Local API.app`（Apple Silicon）。Finder から開いて「サーバーを起動」を押してください。必要なら Applications フォルダにコピーできます。ローカル用の ad-hoc 署名済みです。Developer ID 署名・公証は行っていません。
+この環境用に作成したアプリ: `dist/mac-arm64/Local AI API Proxy.app`（Apple Silicon）。Finder から開いて「サーバーを起動」を押してください。必要なら Applications フォルダにコピーできます。ローカル用の ad-hoc 署名済みです。Developer ID 署名・公証は行っていません。
 
 前提として、Codex CLI がインストールされ、ログイン済みである必要があります。
 
@@ -123,7 +123,7 @@ for await (const chunk of stream) {
 
 GUI のログ欄には、通信の受信日時（この Mac の時刻・秒まで）、送信メッセージと AI の応答を時系列で表示します。ヘッダーの「JSONエクスポート」で、表示対象の通信を日時順の JSON 配列として保存できます。日時、リクエスト、応答、使用量、イベントなどを含みます。生成中はその時点の内容を書き出します。「クリア」で表示中のログと保存済みログを削除できます。通信中はクリアできません。生成中の応答も随時更新されます。モデル一覧取得やヘルスチェックは表示しません。左の「接続テスト」でモデルと推論レベルを選択し、動作確認用のリクエストを送れます。Codex ではモデルが対応する推論レベルを表示し、Antigravity では推論レベル欄を無効にし、推論強度はモデル名で選択します。
 
-- Mac アプリ: Electron の `userData`（通常 `~/Library/Application Support/Codex Local API/`。開発起動時はパッケージ名のフォルダになる場合があります）。保存先でログファイルを確認できます。
+- Mac アプリ: 既存の設定・ログ・画面状態を引き継ぐため、保存先は `~/Library/Application Support/Codex Local API/`（開発起動時は `codex-local-api/`）を継続して使用します。
 - CLI: プロジェクト内の `.local-data/`。
 - `CODEX_LOCAL_DATA` 環境変数で保存先を変更可能。
 - `settings.json`: バックエンド、ポート、各 CLI パス、タイムアウト。
@@ -140,7 +140,7 @@ macOS で Node.js と npm をインストール済みなら、次の一回で依
 ./build-mac.sh
 ```
 
-出力先は Apple Silicon では `dist/mac-arm64/Codex Local API.app`、Intel では `dist/mac/Codex Local API.app` です。使用中の Node.js のアーキテクチャに合わせてビルドします。別のディレクトリからスクリプトのパスを指定しても実行できます。
+出力先は Apple Silicon では `dist/mac-arm64/Local AI API Proxy.app`、Intel では `dist/mac/Local AI API Proxy.app` です。使用中の Node.js のアーキテクチャに合わせてビルドします。別のディレクトリからスクリプトのパスを指定しても実行できます。
 
 個別に実行する場合:
 
@@ -149,7 +149,7 @@ npm ci
 npm start                 # Mac GUI
 npm run server            # GUI なしでサーバー起動
 npm test                  # モックと実際の HTTP/JSONL 通信による自動テスト
-npm run build             # dist/mac-arm64/Codex Local API.app
+npm run build             # dist/mac-arm64/Local AI API Proxy.app
 npm run dist              # DMG 作成（配布用署名・公証は別途必要）
 ```
 

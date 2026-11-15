@@ -1,5 +1,6 @@
 {
-  "name": "codex-local-api",
+  "name": "local-ai-api-proxy",
+  "productName": "Local AI API Proxy",
   "version": "1.0.0",
   "private": true,
   "description": "Local OpenAI-compatible test server powered by Codex app-server or Antigravity CLI",
@@ -19,7 +20,7 @@
   },
   "build": {
     "appId": "local.codex.api",
-    "productName": "Codex Local API",
+    "productName": "Local AI API Proxy",
     "electronDist": "node_modules/electron/dist",
     "files": [
       "src/**/*",
