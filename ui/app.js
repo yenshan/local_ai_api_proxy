@@ -1,6 +1,6 @@
 const $ = id => document.getElementById(id);
 let snapshot = { state: 'stopped', settings: {}, models: [] };
-let rows = []; let clearingLogs = false; let pending = false; let playgroundBusy = false; let toastTimer;
+let rows = []; let clearingLogs = false; let exportingLogs = false; let pending = false; let playgroundBusy = false; let toastTimer;
 let settingsSignature = '';
 let settingsDirty = false; let settingsBusy = false; let settingsTimer; let settingsLocked = false;
 const statusNames = { stopped: '停止中', starting: '起動中', running: '稼働中', stopping: '停止中…', error: '接続エラー' };
@@ -73,12 +73,13 @@ const communicationNodes = new Map();
 const logDateFormat = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 function render() {
   const activeLogs = rows.some(row => row.status === 'running');
-  $('clearLogs').disabled = clearingLogs || activeLogs || !rows.length;
+  $('clearLogs').disabled = clearingLogs || exportingLogs || activeLogs || !rows.length;
   $('clearLogs').title = activeLogs ? '通信の完了後にクリアできます' : '保存済みの通信ログをすべてクリア';
   const panel = $('communicationLog');
   const atBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 50;
   const oldScroll = panel.scrollTop;
   const communications = rows.filter(row => row.method === 'POST' && /^\/v1\/(chat\/completions|responses)(?:\?|$)/.test(row.path) && row.request).slice().reverse();
+  $('exportLogs').disabled = exportingLogs || clearingLogs || !communications.length;
   const ids = new Set(communications.map(row => row.id));
   for (const [id, node] of communicationNodes) if (!ids.has(id)) { node.remove(); communicationNodes.delete(id); }
   panel.querySelector('.empty-log')?.remove();
@@ -105,6 +106,12 @@ function render() {
 click('toggleServer', async () => {
   pending = true; renderState();
   try { snapshot = await call(snapshot.state === 'running' ? 'stop' : 'start'); } finally { pending = false; renderState(); }
+});
+click('exportLogs', async () => {
+  if ($('exportLogs').disabled) return;
+  exportingLogs = true; render();
+  try { if (await call('export')) toast('通信ログをJSONで保存しました'); }
+  finally { exportingLogs = false; render(); }
 });
 click('clearLogs', async () => {
   if ($('clearLogs').disabled) return;

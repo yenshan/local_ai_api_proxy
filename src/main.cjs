@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog, shell, Menu } = require('electron')
 const path = require('node:path');
 const fs = require('node:fs');
 const { LocalServer } = require('./server.cjs');
+const { exportCommunicationLogs } = require('./export.cjs');
 let window; let server; let exiting = false;
 if (process.argv.includes('--smoke')) {
   process.env.CODEX_LOCAL_SMOKE = '1';
@@ -30,11 +31,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('cancel', (_, id) => server.cancel(id));
   ipcMain.handle('clear', () => server.store.clear());
   ipcMain.handle('open-logs', () => shell.openPath(server.store.directory));
-  ipcMain.handle('export', async () => {
-    const result = await dialog.showSaveDialog(window, { defaultPath: `codex-api-logs-${new Date().toISOString().slice(0,10)}.json`, filters: [{ name: 'JSON', extensions: ['json'] }] });
-    if (!result.canceled) fs.writeFileSync(result.filePath, JSON.stringify(server.store.list(), null, 2), { mode: 0o600 });
-    return !result.canceled;
-  });
+  ipcMain.handle('export', () => exportCommunicationLogs({ parent: window, dialog, rows: server.store.list() }));
   ipcMain.handle('test-request', async (_, body) => {
     if (server.state !== 'running') throw new Error('サーバーを起動してください');
     const response = await fetch(`http://127.0.0.1:${server.settings.port}/v1/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout((server.settings.timeout + 35) * 1000) });
