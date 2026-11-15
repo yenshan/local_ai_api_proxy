@@ -6,7 +6,7 @@
   <title>Codex Local API</title><link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="titlebar"><span>LOCAL DEVELOPMENT / CODEX</span><span class="titlebar-right">API OBSERVATORY <span class="version">v1.0</span></span></div>
+  <div class="titlebar"><span id="backendTitle">LOCAL DEVELOPMENT / CODEX</span><span class="titlebar-right">API OBSERVATORY <span class="version">v1.0</span></span></div>
   <aside class="sidebar">
     <div class="brand"><div class="brand-icon">⌘</div><div>Codex<span>Local API</span></div></div>
     <div class="nav-caption">WORKSPACE</div>
@@ -14,7 +14,7 @@
     <button class="nav" id="showPlayground"><span>▷</span> Playground</button>
     <button class="nav" id="showSettings"><span>⚙</span> サーバー設定</button>
     <div class="sidebar-bottom">
-      <div class="engine"><span class="engine-symbol">↳</span><div>Codex app-server<small id="accountLabel">ローカルプロセス</small></div></div>
+      <div class="engine"><span class="engine-symbol">↳</span><div><span id="engineLabel">Codex app-server</span><small id="accountLabel">ローカルプロセス</small></div></div>
       <div class="local-note"><span class="dot"></span> 127.0.0.1 のみで待ち受け</div>
       <button class="text-button" id="openLogs">ログフォルダを開く ↗</button>
     </div>
@@ -31,7 +31,7 @@
       <footer class="activity-footer"><span id="visibleCount">0 件のリクエスト</span><span>ログはこの Mac に保存されます<span class="dot"></span></span></footer>
     </section>
   </main>
-  <dialog id="settingsDialog"><form id="settingsForm"><div class="dialog-heading"><div class="eyebrow">CONFIGURATION</div><h2>サーバー設定</h2><button type="button" class="close-dialog" aria-label="閉じる">×</button></div><p class="dialog-description">Codex CLI のログイン情報を使用します。設定変更は停止中に行えます。</p><label>待ち受けポート<input name="port" type="number" min="1024" max="65535" required></label><label>Codex 実行ファイル<input name="binary" placeholder="自動検出（/opt/homebrew/bin/codex など）"></label><label>既定のモデル<select name="model"><option value="">Codex の既定モデル</option></select></label><label>推論の強度<select name="effort"><option value="">モデルの既定値</option></select></label><label>生成タイムアウト（秒）<input name="timeout" type="number" min="10" max="3600" required></label><div class="helper">アプリから送る model / reasoning_effort を優先します。<br>API キーは任意の文字列を指定できます（例: local）。</div><details><summary>Codex 診断ログ</summary><pre id="diagnostics"></pre></details><div class="dialog-footer"><button type="button" class="quiet close-dialog">閉じる</button><button class="primary" type="submit" id="saveSettings">設定を保存</button></div></form></dialog>
+  <dialog id="settingsDialog"><form id="settingsForm"><div class="dialog-heading"><div class="eyebrow">CONFIGURATION</div><h2>サーバー設定</h2><button type="button" class="close-dialog" aria-label="閉じる">×</button></div><p class="dialog-description">選択した CLI のログイン情報を使用します。切り替えは停止中に行えます。</p><label>AI バックエンド<select name="backend"><option value="codex">Codex app-server</option><option value="antigravity">Antigravity CLI</option></select></label><label>待ち受けポート<input name="port" type="number" min="1024" max="65535" required></label><label id="codexBinaryField">Codex 実行ファイル<input name="binary" placeholder="自動検出（/opt/homebrew/bin/codex など）"></label><label id="antigravityBinaryField" hidden>Antigravity 実行ファイル<input name="antigravityBinary" placeholder="自動検出（~/.local/bin/agy など）"></label><label>既定のモデル<select name="model"><option value="">バックエンドの既定モデル</option></select></label><label>推論の強度<select name="effort"><option value="">モデルの既定値</option></select></label><label>生成タイムアウト（秒）<input name="timeout" type="number" min="10" max="3600" required></label><div class="helper">アプリから送る model / reasoning_effort を優先します。<br>Antigravity の推論強度はモデル名で選択してください。<br>API キーは任意の文字列を指定できます（例: local）。</div><details><summary>バックエンド診断ログ</summary><pre id="diagnostics"></pre></details><div class="dialog-footer"><button type="button" class="quiet close-dialog">閉じる</button><button class="primary" type="submit" id="saveSettings">設定を保存</button></div></form></dialog>
   <dialog id="playgroundDialog"><form id="playgroundForm"><div class="dialog-heading"><div class="eyebrow">QUICK TEST</div><h2>Playground</h2><button type="button" class="close-dialog" aria-label="閉じる">×</button></div><p class="dialog-description">ローカル API にリクエストを送り、接続を確認します。</p><label>モデル<select id="testModel" required></select></label><label>System メッセージ<input id="testSystem" placeholder="例: 簡潔な日本語で答えてください。"></label><label>メッセージ<textarea id="testPrompt" rows="5" required>こんにちは。接続テストです。ひとことで返事をしてください。</textarea></label><div id="testResult" class="test-result" hidden></div><div class="dialog-footer"><button type="button" class="quiet close-dialog">閉じる</button><button class="primary" id="sendTest" type="submit">▷ リクエストを送信</button></div></form></dialog>
   <div id="toast" class="toast" hidden></div>
   <script src="app.js"></script>

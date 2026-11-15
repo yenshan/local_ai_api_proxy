@@ -1,8 +1,16 @@
 # Codex Local API
 
-Codex app-server を使う、ローカルの OpenAI API 互換テストサーバーです。Mac アプリで起動・停止し、アプリから送信されたメッセージ、応答、JSON、Codex イベントを確認できます。推論は Codex の接続先で実行されます。オフラインで動くモデルサーバーではありません。
+Codex app-server または Antigravity CLI を使う、ローカルの OpenAI API 互換テストサーバーです。Mac アプリで起動・停止し、アプリから送信されたメッセージ、応答、JSON、Codex イベントを確認できます。推論は Codex の接続先で実行されます。オフラインで動くモデルサーバーではありません。
 
 ## Mac アプリを使う
+
+プロジェクト直下の `start.sh` でアプリを起動できます。初回のみ `npm ci` で依存パッケージを準備してください。
+
+```sh
+./start.sh
+```
+
+別のディレクトリから絶対パスで実行することもできます。`./start.sh --packaged` でビルド済みアプリを起動できます。
 
 この環境用に作成したアプリ: `dist/mac-arm64/Codex Local API.app`（Apple Silicon）。Finder から開いて「サーバーを起動」を押してください。必要なら Applications フォルダにコピーできます。ローカル用の ad-hoc 署名済みです。Developer ID 署名・公証は行っていません。
 
@@ -17,6 +25,28 @@ Codex 実行ファイルは `/opt/homebrew/bin/codex`、`/usr/local/bin/codex`�
 既定の接続先は **`http://127.0.0.1:8787/v1`** です。テスト対象アプリの Base URL に設定してください。API キー入力が必須のクライアントでは `local` など任意の文字列を使えます。サーバーは API キーによる認証を行いません。
 
 モデルは起動時と `/v1/models` アクセス時に、Codex app-server の `model/list` をページ送りして取得します。GUI の更新ボタンでも再取得できます。モデルカタログへの掲載と実際の利用権限は別で、利用可否はアカウントや接続先に依存します。モデル省略時は GUI で保存したモデル、Codex の既定モデル、一覧の先頭の順に選びます。
+
+## Antigravity に切り替える
+
+1. ターミナルで `agy` を起動し、Antigravity にログインしてください。`agy models` でモデル一覧を確認できます。IDE 用の `antigravity` コマンドではなく、非対話実行に対応した **Antigravity CLI (`agy`)** が必要です。
+2. このアプリのサーバーを停止し、「サーバー設定」→「AI バックエンド」で **Antigravity CLI** を選択して保存します。実行ファイルは `~/.local/bin/agy`、Homebrew、PATH から自動検出します。必要なら絶対パスを指定できます。
+3. サーバーを起動すると、モデル一覧と画面のバックエンド表示が切り替わります。Codex に戻すときも同じ手順です。
+
+Base URL は共通の `http://127.0.0.1:8787/v1` です。`/v1/models`、Chat Completions、Responses、SSE、JSON Schema 出力、使用量、中断・タイムアウトに対応します。切り替え時は既定モデルと推論強度をリセットします。切り替え後にモデル一覧を取得し、必要なら停止して既定モデルを設定してください。
+
+Antigravity のモデルは `agy models` から取得したスラッグをそのまま使います。推論強度は `-low` / `-medium` / `-high` などを含むモデル名で選んでください。モデル別の対応強度を CLI が列挙しないため、Antigravity 選択時の `reasoning_effort` / `reasoning.effort` は明示的なエラーになります。
+
+内部ではリクエストごとに専用の作業ディレクトリとテキスト生成用エージェントを作り、`agy` の NDJSON 入出力を OpenAI 形式へ変換します。システム指示は専用エージェントの指示に、会話は stdin に渡します。ツールは完了通知用の `finish` のみを許可し、スラッシュコマンド展開を無効にします。JSON Schema の場合は CLI の最終構造化出力を受け取ってから本文を送ります。中断時には当該 CLI プロセスを終了します。ユーザーの認証情報や CLI 設定は書き換えません。会話は CLI 側にも履歴が残る場合があり、ephemeral 保証は Codex のみです。
+
+CLI のみで起動する場合:
+
+```sh
+AI_BACKEND=antigravity npm run server
+# 自動検出できない場合
+AI_BACKEND=antigravity ANTIGRAVITY_BINARY=/absolute/path/to/agy npm run server
+```
+
+接続方法の参照: [Antigravity headless mode](https://antigravity.google/docs/cli/headless)、[カスタムエージェント](https://antigravity.google/docs/subagents/)。
 
 ## Python OpenAI SDK で接続
 
@@ -67,7 +97,7 @@ for await (const chunk of stream) {
 | API / 機能 | 対応 |
 | --- | --- |
 | `GET /health` | サーバー状態 |
-| `GET /v1/models` | Codex に問い合わせたモデル一覧 |
+| `GET /v1/models` | 選択バックエンドに問い合わせたモデル一覧 |
 | `POST /v1/chat/completions` | テキスト応答、SSE、`stream_options.include_usage` |
 | `POST /v1/responses` | テキスト応答、Responses 形式の SSE イベント |
 | system / developer / user / assistant | テキストとテキストパート配列 |
@@ -89,12 +119,12 @@ for await (const chunk of stream) {
 
 ## ログと設定
 
-GUI ではメッセージ、Request、Response、Codex events のタブを表示します。モデル・本文・パスで検索でき、JSON エクスポートとログのクリアにも対応しています。「Playground」から動作確認用のリクエストを送れます。
+GUI ではメッセージ、Request、Response、バックエンドごとの events のタブを表示します。モデル・本文・パスで検索でき、JSON エクスポートとログのクリアにも対応しています。「Playground」から動作確認用のリクエストを送れます。
 
 - Mac アプリ: Electron の `userData`（通常 `~/Library/Application Support/Codex Local API/`。開発起動時はパッケージ名のフォルダになる場合があります）。GUI の「ログフォルダを開く」で確認できます。
 - CLI: プロジェクト内の `.local-data/`。
 - `CODEX_LOCAL_DATA` 環境変数で保存先を変更可能。
-- `settings.json`: ポート、Codex パス、既定モデル、推論の強度、タイムアウト。
+- `settings.json`: バックエンド、ポート、各 CLI パス、既定モデル、推論の強度、タイムアウト。
 - `logs/requests.jsonl`: 完了した通信を JSONL 保存。20 MiB を超えると `.1` にローテーション。GUI は直近 300 件を保持し、再起動時はファイル末尾の最大 8 MiB を読みます。
 - 保存される内容は本文・応答・エラー・使用量・Codex イベントです。Authorization ヘッダーや Codex の認証情報は記録しません。本文中に含めた値はそのまま保存されます。
 - GUI の「クリア」は表示中のログと JSONL、ローテーション済み JSONL を削除します。生成中はクリアできません。
@@ -122,13 +152,14 @@ npm run build             # dist/mac-arm64/Codex Local API.app
 npm run dist              # DMG 作成（配布用署名・公証は別途必要）
 ```
 
-CLI の環境変数: `PORT`、`CODEX_BINARY`、`CODEX_LOCAL_DATA`。Electron の初回起動時にバイナリをダウンロードするバージョンでは、`npm start` を一度実行してからビルドしてください。
+CLI の環境変数: `PORT`、`AI_BACKEND`（`codex` / `antigravity`）、`CODEX_BINARY`、`ANTIGRAVITY_BINARY`、`CODEX_LOCAL_DATA`。Electron の初回起動時にバイナリをダウンロードするバージョンでは、`npm start` を一度実行してからビルドしてください。
 
 実 Codex と GUI のスモークテスト:
 
 ```sh
 npm start -- --smoke                      # 起動、モデル取得、GUI 状態を確認
 npm start -- --smoke --smoke-inference    # 実生成を3回実行してストリーム・構造化出力を確認
+npm start -- --smoke --smoke-antigravity --smoke-inference # Antigravity の実生成確認
 npm start -- --packaged --smoke          # ビルドした .app の起動を確認
 ```
 

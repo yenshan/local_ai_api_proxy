@@ -15,7 +15,7 @@ function preview(row) {
 }
 function populateSelect(select, models, current, includeDefault) {
   select.replaceChildren();
-  if (includeDefault) { const option = el('option', '', 'Codex の既定モデル'); option.value = ''; select.append(option); }
+  if (includeDefault) { const option = el('option', '', 'バックエンドの既定モデル'); option.value = ''; select.append(option); }
   for (const m of models) { const option = el('option', '', m.displayName || m.model); option.value = m.model; select.append(option); }
   if (current && !models.some(m => m.model === current)) { const option = el('option', '', `${current}（未取得）`); option.value = current; select.append(option); }
   if (current) select.value = current;
@@ -31,7 +31,10 @@ function renderState() {
   const model = snapshot.models.find(m => m.model === snapshot.settings.model) || snapshot.models.find(m => m.isDefault) || snapshot.models[0];
   $('modelSummary').textContent = snapshot.models.length ? `${model?.displayName || model?.model} · ${snapshot.models.length} models` : '起動時にモデルを取得';
   $('refreshModels').disabled = snapshot.state !== 'running';
-  $('accountLabel').textContent = snapshot.account ? `${snapshot.account.type}${snapshot.account.planType ? ' / ' + snapshot.account.planType : ''}` : 'Codex CLI の認証を使用';
+  const antigravity = snapshot.settings.backend === 'antigravity';
+  $('engineLabel').textContent = antigravity ? 'Antigravity CLI' : 'Codex app-server';
+  $('backendTitle').textContent = `LOCAL DEVELOPMENT / ${antigravity ? 'ANTIGRAVITY' : 'CODEX'}`;
+  $('accountLabel').textContent = snapshot.account ? `${snapshot.account.type}${snapshot.account.planType ? ' / ' + snapshot.account.planType : ''}` : antigravity ? 'agy の認証を使用' : 'Codex CLI の認証を使用';
   $('serverError').hidden = !snapshot.error;
   $('serverError').textContent = snapshot.error || '';
   $('diagnostics').textContent = snapshot.diagnostics.map(d => `${d.time}\n${d.message}`).join('\n') || '診断ログはまだありません';
@@ -78,7 +81,7 @@ function renderDetail() {
   panel.replaceChildren();
   const head = el('div', 'detail-head'); head.append(el('strong', '', 'リクエスト詳細'), el('span', '', row.id.slice(0, 8)));
   const tabs = el('div', 'detail-tabs');
-  for (const [key, label] of [['messages','メッセージ'],['request','Request'],['response','Response'],['events','Codex events']]) {
+  for (const [key, label] of [['messages','メッセージ'],['request','Request'],['response','Response'],['events',row.backend === 'antigravity' ? 'Antigravity events' : 'Codex events']]) {
     const button = el('button', `detail-tab${tab === key ? ' selected' : ''}`, label); button.onclick = () => { tab = key; renderDetail(); }; tabs.append(button);
   }
   const body = el('div', 'detail-body');
@@ -121,11 +124,24 @@ click('showRequests', () => { $('search').value = ''; filter = 'all'; document.q
 click('showPlayground', openPlayground); click('emptyPlayground', openPlayground);
 click('showSettings', () => {
   const form = $('settingsForm');
-  for (const k of ['port','binary','timeout']) form.elements[k].value = snapshot.settings[k];
+  for (const k of ['port','binary','antigravityBinary','backend','timeout']) form.elements[k].value = snapshot.settings[k];
   populateSelect(form.elements.model, snapshot.models, snapshot.settings.model, true); effortOptions(snapshot.settings.effort);
   const editable = ['stopped','error'].includes(snapshot.state);
   for (const input of form.querySelectorAll('input,select')) input.disabled = !editable;
+  backendFields();
   $('saveSettings').disabled = !editable; $('settingsDialog').showModal();
+});
+function backendFields() {
+  const form = $('settingsForm'); const agy = form.elements.backend.value === 'antigravity';
+  $('codexBinaryField').hidden = agy; $('antigravityBinaryField').hidden = !agy;
+}
+$('settingsForm').elements.backend.addEventListener('change', () => {
+  const form = $('settingsForm');
+  const same = form.elements.backend.value === snapshot.settings.backend;
+  populateSelect(form.elements.model, same ? snapshot.models : [], same ? snapshot.settings.model : '', true);
+  effortOptions();
+  if (!same) form.elements.effort.replaceChildren(new Option('モデルの既定値', ''));
+  backendFields();
 });
 $('settingsForm').elements.model.addEventListener('change', () => effortOptions());
 click('openLogs', () => call('open-logs'));
@@ -139,7 +155,7 @@ $('settingsForm').addEventListener('submit', async event => {
 });
 $('playgroundForm').addEventListener('submit', async event => {
   event.preventDefault(); $('sendTest').disabled = true; $('sendTest').textContent = '生成中…';
-  const result = $('testResult'); result.hidden = false; result.classList.remove('error'); result.textContent = 'Codex の応答を待っています…';
+  const result = $('testResult'); result.hidden = false; result.classList.remove('error'); result.textContent = 'AI の応答を待っています…';
   try {
     const messages = []; if ($('testSystem').value) messages.push({ role: 'system', content: $('testSystem').value }); messages.push({ role: 'user', content: $('testPrompt').value });
     const response = await call('test-request', { model: $('testModel').value, messages });

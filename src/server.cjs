@@ -4,18 +4,20 @@ const fs = require('node:fs');
 const { randomUUID } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const { CodexRPC } = require('./rpc.cjs');
+const { AntigravityBackend } = require('./antigravity.cjs');
 const { LogStore } = require('./store.cjs');
 const { APIError, normalize, chatUsage, responseObject } = require('./protocol.cjs');
 
-const DEFAULTS = { port: 8787, binary: '', model: '', effort: '', timeout: 180 };
+const DEFAULTS = { port: 8787, backend: 'codex', antigravityBinary: '', binary: '', model: '', effort: '', timeout: 180 };
 const BASE = 'You are an assistant behind a local text-generation API. Answer directly. Do not inspect local files, run commands, browse the web, use skills, invoke tools, or perform actions. Only generate a reply to the supplied conversation.';
 
 class LocalServer extends EventEmitter {
-  constructor({ directory, rpcFactory } = {}) {
+  constructor({ directory, rpcFactory, antigravityFactory } = {}) {
     super(); this.directory = directory || path.resolve('.local-data');
     fs.mkdirSync(path.join(this.directory, 'workspace'), { recursive: true, mode: 0o700 });
     this.store = new LogStore(path.join(this.directory, 'logs'));
     this.rpcFactory = rpcFactory || (opts => new CodexRPC(opts));
+    this.antigravityFactory = antigravityFactory || (opts => new AntigravityBackend(opts));
     this.settings = { ...DEFAULTS }; this.models = []; this.state = 'stopped'; this.active = new Map(); this.diagnostics = [];
     try { Object.assign(this.settings, JSON.parse(fs.readFileSync(path.join(this.directory, 'settings.json')))); } catch {}
     this.store.on('change', row => this.emit('log', row));
@@ -31,7 +33,9 @@ class LocalServer extends EventEmitter {
     next.port = Number(next.port); next.timeout = Number(next.timeout);
     if (!Number.isInteger(next.port) || next.port < 1024 || next.port > 65535) throw new Error('ポートは 1024〜65535 を指定してください');
     if (!Number.isFinite(next.timeout) || next.timeout < 10 || next.timeout > 3600) throw new Error('タイムアウトは 10〜3600 秒を指定してください');
-    for (const k of ['binary','model','effort']) if (typeof next[k] !== 'string') throw new Error(`Invalid ${k}`);
+    if (!['codex', 'antigravity'].includes(next.backend)) throw new Error('Invalid backend');
+    if (next.backend !== this.settings.backend) { next.model = ''; next.effort = ''; this.models = []; this.account = null; }
+    for (const k of ['binary','antigravityBinary','model','effort']) if (typeof next[k] !== 'string') throw new Error(`Invalid ${k}`);
     this.settings = next;
     fs.writeFileSync(path.join(this.directory, 'settings.json'), JSON.stringify(next, null, 2), { mode: 0o600 });
     this.emitState(); return this.snapshot();
@@ -40,9 +44,11 @@ class LocalServer extends EventEmitter {
     if (this.state === 'running') return this.snapshot();
     if (this.state === 'starting' || this.state === 'stopping') throw new Error('起動・停止処理中です');
     if (this.rpc || this.http) await this.stop();
-    this.state = 'starting'; this.error = null; this.emitState();
+    this.state = 'starting'; this.models = []; this.account = null; this.requiresLogin = false; this.error = null; this.emitState();
     try {
-      this.rpc = this.rpcFactory({ binary: this.settings.binary, cwd: path.join(this.directory, 'workspace') });
+      this.rpc = this.settings.backend === 'antigravity'
+        ? this.antigravityFactory({ binary: this.settings.antigravityBinary, cwd: path.join(this.directory, 'workspace') })
+        : this.rpcFactory({ binary: this.settings.binary, cwd: path.join(this.directory, 'workspace') });
       this.rpc.on('diagnostic', message => { this.diagnostics.push({ time: new Date().toISOString(), message: message.slice(0, 8000) }); this.diagnostics = this.diagnostics.slice(-80); this.emit('diagnostic', this.diagnostics.at(-1)); });
       this.rpc.on('disconnected', err => {
         for (const controller of this.active.values()) controller.abort(err);
@@ -51,14 +57,18 @@ class LocalServer extends EventEmitter {
       await this.rpc.start();
       // Disable inherited connectors for generation threads without changing
       // the user's Codex configuration or exposing its values in logs.
-      const config = await this.rpc.call('config/read', { includeLayers: false });
-      this.threadConfig = { 'features.shell_tool': false, 'features.apps': false, web_search: 'disabled' };
-      for (const name of Object.keys(config.config?.mcp_servers || {})) this.threadConfig[`mcp_servers.${name}.enabled`] = false;
+      if (this.settings.backend === 'codex') {
+        const config = await this.rpc.call('config/read', { includeLayers: false });
+        this.threadConfig = { 'features.shell_tool': false, 'features.apps': false, web_search: 'disabled' };
+        for (const name of Object.keys(config.config?.mcp_servers || {})) this.threadConfig[`mcp_servers.${name}.enabled`] = false;
+        const account = await this.rpc.call('account/read', { refreshToken: false });
+        this.account = account.account ? { type: account.account.type, planType: account.account.planType } : null;
+        this.requiresLogin = account.requiresOpenaiAuth && !account.account;
+        if (this.requiresLogin) this.error = 'Codex にログインしていません。ターミナルで codex login を実行し、サーバーを再起動してください。';
+      } else {
+        this.account = { type: 'Antigravity CLI' };
+      }
       await this.refreshModels();
-      const account = await this.rpc.call('account/read', { refreshToken: false });
-      this.account = account.account ? { type: account.account.type, planType: account.account.planType } : null;
-      this.requiresLogin = account.requiresOpenaiAuth && !account.account;
-      if (this.requiresLogin) this.error = 'Codex にログインしていません。ターミナルで codex login を実行し、サーバーを再起動してください。';
       this.http = http.createServer((req, res) => this.handle(req, res));
       this.http.requestTimeout = 15000; this.http.headersTimeout = 10000;
       await new Promise((resolve, reject) => {
@@ -72,6 +82,8 @@ class LocalServer extends EventEmitter {
     }
   }
   async refreshModels() {
+    if (!this.rpc) throw new Error('サーバーを起動してください');
+    if (this.settings.backend === 'antigravity') { this.models = await this.rpc.listModels(); this.emitState(); return this.models; }
     const models = []; let cursor = null; const seen = new Set();
     do {
       const page = await this.rpc.call('model/list', { limit: 100, cursor, includeHidden: false });
@@ -91,7 +103,7 @@ class LocalServer extends EventEmitter {
   cancel(id) { this.active.get(id)?.abort(new Error('Request cancelled')); }
   async handle(req, res) {
     const started = Date.now();
-    const row = { id: randomUUID(), time: new Date().toISOString(), method: req.method, path: req.url, status: 'running', events: [], text: '', request: null, response: null, stream: false };
+    const row = { id: randomUUID(), time: new Date().toISOString(), method: req.method, path: req.url, status: 'running', backend: this.settings.backend, events: [], text: '', request: null, response: null, stream: false };
     this.store.add(row);
     const controller = new AbortController(); this.active.set(row.id, controller);
     res.setHeader('x-request-id', row.id);
@@ -120,14 +132,14 @@ class LocalServer extends EventEmitter {
       if (req.method === 'OPTIONS') {
         res.writeHead(204); res.end();
       } else if (req.method === 'GET' && route === '/health') {
-        row.response = { status: this.state, backend: 'codex-app-server' }; sendJSON(this.state === 'running' ? 200 : 503, row.response);
+        row.response = { status: this.state, backend: this.settings.backend === 'antigravity' ? 'antigravity' : 'codex-app-server' }; sendJSON(this.state === 'running' ? 200 : 503, row.response);
       } else if (req.method === 'GET' && route === '/v1/models') {
-        if (this.state !== 'running') throw new APIError('Codex app-server is unavailable', 503, null, 'server_error');
+        if (this.state !== 'running') throw new APIError('AI backend is unavailable', 503, null, 'server_error');
         await this.refreshModels();
-        row.response = { object: 'list', data: this.models.map(m => ({ id: m.model, object: 'model', created: 0, owned_by: 'codex', name: m.displayName })) };
+        row.response = { object: 'list', data: this.models.map(m => ({ id: m.model, object: 'model', created: 0, owned_by: this.settings.backend, name: m.displayName })) };
         sendJSON(200, row.response);
       } else if (req.method === 'POST' && ['/v1/chat/completions', '/v1/responses'].includes(route)) {
-        if (this.state !== 'running') throw new APIError('Codex app-server is unavailable', 503, null, 'server_error');
+        if (this.state !== 'running') throw new APIError('AI backend is unavailable', 503, null, 'server_error');
         if (this.active.size > 16) throw new APIError('Too many concurrent requests', 429, null, 'rate_limit_exceeded');
         const chunks = []; let size = 0;
         for await (const chunk of req) { size += chunk.length; if (size > 2 * 1024 * 1024) throw new APIError('Request body exceeds 2 MiB', 413); chunks.push(chunk); }
@@ -195,6 +207,13 @@ class LocalServer extends EventEmitter {
   }
   async generate(row, input, model, effort, signal, onDelta) {
     const rpc = this.rpc;
+    if (this.settings.backend === 'antigravity') {
+      const result = await rpc.generate({ input, model, signal, timeout: this.settings.timeout * 1000, baseInstructions: BASE,
+        onDelta: delta => { this.store.update(row, { text: row.text + delta }); onDelta(delta); },
+        onThread: threadId => this.store.update(row, { threadId }),
+        onEvent: event => { if (row.events.length < 1000) row.events.push({ time: new Date().toISOString(), ...event }); else row.eventsTruncated = true; } });
+      this.store.update(row, { usage: result.usage }); return result;
+    }
     let threadId; let turnId; let usage; let text = ''; let settled = false; let listener; let abort; let timer;
     const streamed = new Set();
     const append = delta => { text += delta; this.store.update(row, { text }); onDelta(delta); };

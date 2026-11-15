@@ -58,11 +58,12 @@ app.whenReady().then(async () => {
   if (process.env.CODEX_LOCAL_SMOKE) {
     await new Promise(resolve => window.webContents.once('did-finish-load', resolve));
     try {
+      if (process.argv.includes('--smoke-antigravity')) server.configure({ backend: 'antigravity' });
       await server.start();
       const state = await window.webContents.executeJavaScript('document.querySelector("#statusLabel").textContent');
       if (state !== '稼働中') throw new Error(`Unexpected GUI status: ${state}`);
       if (process.argv.includes('--smoke-inference')) {
-        const model = server.models.find(m => m.isDefault) || server.models[0];
+        const model = (server.settings.backend === 'antigravity' && server.models.find(m => m.model.endsWith('-low'))) || server.models.find(m => m.isDefault) || server.models[0];
         const post = async (endpoint, body) => {
           const response = await fetch(`http://127.0.0.1:${server.settings.port}/v1/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model.model, ...body }) });
           const text = await response.text();
@@ -83,6 +84,14 @@ app.whenReady().then(async () => {
         await window.webContents.executeJavaScript(`if (!document.querySelector('#settingsDialog').open) throw new Error('Settings did not open'); document.querySelector('#settingsDialog').close();`);
         console.log('REAL_INFERENCE_OK', JSON.stringify({ chatStream: true, responsesJSONSchema: true, responsesStream: true, usage: response.usage }));
       }
+      await window.webContents.executeJavaScript(`(async () => {
+        document.querySelector('#showSettings').click();
+        await new Promise(resolve => setTimeout(resolve, 100));
+        const form = document.querySelector('#settingsForm');
+        if (!form.elements.backend.disabled) throw new Error('Backend selector must be disabled while running');
+        if (!Array.from(form.elements.backend.options).some(o => o.value === 'antigravity')) throw new Error('Antigravity option missing');
+        document.querySelector('#settingsDialog').close();
+      })()`);
       window.show(); window.focus();
       await window.webContents.executeJavaScript(`new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))`);
       await new Promise(resolve => setTimeout(resolve, 200));

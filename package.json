@@ -2,7 +2,7 @@
   "name": "codex-local-api",
   "version": "1.0.0",
   "private": true,
-  "description": "Local OpenAI-compatible test server powered by Codex app-server",
+  "description": "Local OpenAI-compatible test server powered by Codex app-server or Antigravity CLI",
   "author": "Local Development",
   "main": "src/main.cjs",
   "scripts": {

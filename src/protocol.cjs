@@ -15,7 +15,7 @@ function normalize(body, kind) {
   const allowed = new Set(kind === 'chat'
     ? ['model','messages','stream','stream_options','reasoning_effort','response_format','user','metadata','store','n']
     : ['model','input','instructions','stream','reasoning','text','metadata','store']);
-  for (const [key, value] of Object.entries(body)) if (!allowed.has(key) && value != null) throw new APIError(`${key} is not supported by this Codex bridge. See README for compatibility.`, 400, key, 'unsupported_parameter');
+  for (const [key, value] of Object.entries(body)) if (!allowed.has(key) && value != null) throw new APIError(`${key} is not supported by this API bridge. See README for compatibility.`, 400, key, 'unsupported_parameter');
   if (body.n != null && body.n !== 1) throw new APIError('Only n=1 is supported', 400, 'n');
   if (body.model != null && (typeof body.model !== 'string' || !body.model.trim())) throw new APIError('model must be a non-empty string', 400, 'model');
   if (body.stream_options != null && (typeof body.stream_options !== 'object' || Array.isArray(body.stream_options) || Object.keys(body.stream_options).some(k => k !== 'include_usage') || (body.stream_options.include_usage != null && typeof body.stream_options.include_usage !== 'boolean'))) throw new APIError('Only stream_options.include_usage is supported', 400, 'stream_options');
