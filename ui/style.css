@@ -10,13 +10,13 @@ button{transition:background .15s}
 button:hover{filter:brightness(.96)}
 .titlebar{height:var(--titlebar-height);position:fixed;top:0;left:0;right:0;display:flex;align-items:center;padding:0 28px 0 105px;font-size:9px;letter-spacing:1.9px;color:#60756a;border-bottom:1px solid #d7e2db;-webkit-app-region:drag;background:#ffffff;z-index:2}
 .sidebar{position:fixed;top:var(--titlebar-height);left:0;bottom:0;width:var(--sidebar-width);border-right:1px solid var(--line);padding:24px 20px;background:#f0f5f2;display:flex;flex-direction:column;overflow:hidden}
-.sidebar-resizer{position:fixed;top:var(--titlebar-height);bottom:0;left:calc(var(--sidebar-width) - 4px);width:8px;cursor:col-resize;touch-action:none;z-index:3;outline:none}
-.sidebar-resizer:before{content:"";position:absolute;top:50%;left:2px;width:4px;height:28px;transform:translateY(-50%);border-radius:3px;background:#b7cbc0}
-.sidebar-resizer:after{content:"";position:absolute;top:0;bottom:0;left:3px;width:2px;background:transparent;transition:background .15s}
-.sidebar-resizer:hover:after,.sidebar-resizer:focus-visible:after,.resizing-sidebar .sidebar-resizer:after{background:var(--accent)}
-.sidebar-resizer:focus-visible{box-shadow:0 0 0 2px var(--accent)}
-.resizing-sidebar,.resizing-sidebar *{cursor:col-resize!important;user-select:none!important}
-.brand{display:flex;gap:8px;align-items:center;margin:0 0 26px;font-size:14px;font-weight:650;letter-spacing:-.3px;line-height:1.5;container-type:inline-size}
+:root.sidebar-collapsed{--sidebar-width:60px}
+.sidebar-toggle{display:grid;place-items:center;flex-shrink:0;width:28px;height:28px;margin-left:auto;padding:0;border:1px solid var(--line);border-radius:6px;background:#ffffff;color:var(--accent);font-size:24px;line-height:1}
+.sidebar-collapsed .sidebar{padding:24px 10px}
+.sidebar-collapsed .brand{justify-content:center;margin:0}
+.sidebar-collapsed .brand-icon,.sidebar-collapsed .brand-title,.sidebar-collapsed .sidebar #settingsForm{display:none}
+.sidebar-collapsed .sidebar-toggle{margin-left:0}
+.brand{display:flex;gap:8px;align-items:center;margin:0 0 26px;font-size:14px;font-weight:650;letter-spacing:-.3px;line-height:1.5}
 .sidebar #settingsForm{display:flex;flex-direction:column;flex:1;min-height:0}
 .settings-fields{flex:1;min-height:0;overflow:auto;padding-right:4px}
 .sidebar h2{font-size:18px;font-weight:600;margin:9px 0 14px}
@@ -25,7 +25,7 @@ button:hover{filter:brightness(.96)}
 .sidebar label input,.sidebar label select{font-size:11px;padding:9px}
 .sidebar #settingsStatus{flex-shrink:0;max-height:100px;overflow:auto;overflow-wrap:anywhere;margin:14px 0 0}
 .settings-status-error{color:#9a432b}
-.brand-title{white-space:nowrap;font-size:clamp(10px,4.8cqw,14px);letter-spacing:-.35px}
+.brand-title{white-space:nowrap;font-size:13px;letter-spacing:-.35px}
 .brand-icon{width:30px;height:30px;flex-shrink:0;border-radius:11px;background:#dcefe5;border:1px solid #d7e2db;color:var(--accent);font-size:28px;display:grid;place-items:center;font-weight:400}
 .dot{display:inline-block;width:6px;height:6px;background:#23845c;border-radius:50%;flex-shrink:0}
 .text-button{color:#60756a;background:none;padding:4px 0;font-size:10px}

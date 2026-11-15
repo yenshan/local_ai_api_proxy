@@ -45,25 +45,9 @@ function renderState() {
   $('serverError').hidden = !snapshot.error;
   $('serverError').textContent = snapshot.error || '';
 }
-function antigravityEffortVariants() {
-  if (snapshot.settings.backend !== 'antigravity') return [];
-  const selected = $('testModel').value.match(/^(.*)-(minimal|low|medium|high|xhigh|max)$/);
-  if (!selected) return [];
-  return ['minimal', 'low', 'medium', 'high', 'xhigh', 'max'].flatMap(effort => {
-    const model = playgroundModels().find(m => m.model === `${selected[1]}-${effort}`);
-    return model ? [{ effort, model: model.model }] : [];
-  });
-}
 function renderPlaygroundEffort(current = '') {
   const select = $('testEffort');
-  const variants = antigravityEffortVariants();
   select.replaceChildren();
-  if (variants.length) {
-    for (const variant of variants) { const option = el('option', '', variant.effort); option.value = variant.effort; select.append(option); }
-    select.value = variants.find(v => v.model === $('testModel').value).effort;
-    select.disabled = variants.length < 2;
-    return;
-  }
   const option = el('option', '', 'モデルの既定値'); option.value = ''; select.append(option);
   const model = playgroundModels().find(m => m.model === $('testModel').value);
   const efforts = snapshot.settings.backend === 'antigravity' ? [] : model?.supportedReasoningEfforts || [];
@@ -72,10 +56,6 @@ function renderPlaygroundEffort(current = '') {
   select.disabled = !efforts.length;
 }
 $('testModel').addEventListener('change', () => renderPlaygroundEffort());
-$('testEffort').addEventListener('change', () => {
-  const variant = antigravityEffortVariants().find(v => v.effort === $('testEffort').value);
-  if (variant) { $('testModel').value = variant.model; renderPlaygroundEffort(); }
-});
 function contentText(value) {
   if (typeof value === 'string') return value;
   if (Array.isArray(value)) return value.map(part => typeof part?.text === 'string' ? part.text : '').filter(Boolean).join('\n');
@@ -216,54 +196,19 @@ window.api.on('log', row => { const index = rows.findIndex(r => r.id === row.id)
 window.api.on('reset', () => { rows = []; render(); });
 window.api.call('snapshot').then(data => { snapshot = data; rows = data.logs; renderState(); render(); }).catch(err => toast(err.message));
 
-const sidebarResizer = $('sidebarResizer');
-const SIDEBAR_DEFAULT = 320;
-const SIDEBAR_MIN = 240;
-let preferredSidebarWidth = SIDEBAR_DEFAULT;
-let sidebarDrag = null;
-try {
-  const savedWidth = Number(localStorage.getItem('sidebarWidth'));
-  if (Number.isFinite(savedWidth) && savedWidth >= SIDEBAR_MIN && savedWidth <= 520) preferredSidebarWidth = savedWidth;
-} catch {}
-function applySidebarWidth(width) {
-  const maximum = Math.max(SIDEBAR_MIN, Math.min(520, window.innerWidth - 680));
-  const actual = Math.round(Math.max(SIDEBAR_MIN, Math.min(maximum, width)));
-  document.documentElement.style.setProperty('--sidebar-width', `${actual}px`);
-  sidebarResizer.setAttribute('aria-valuemax', maximum);
-  sidebarResizer.setAttribute('aria-valuenow', actual);
-  return actual;
+const toggleSidebar = $('toggleSidebar');
+let sidebarCollapsed = false;
+try { sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true'; } catch {}
+function renderSidebar() {
+  document.documentElement.classList.toggle('sidebar-collapsed', sidebarCollapsed);
+  toggleSidebar.setAttribute('aria-expanded', String(!sidebarCollapsed));
+  const label = sidebarCollapsed ? 'サイドバーを開く' : 'サイドバーを閉じる';
+  toggleSidebar.setAttribute('aria-label', label); toggleSidebar.title = label;
+  $('sidebarToggleIcon').textContent = sidebarCollapsed ? '›' : '‹';
 }
-function saveSidebarWidth(width) {
-  preferredSidebarWidth = width;
-  try { localStorage.setItem('sidebarWidth', String(width)); } catch {}
-}
-sidebarResizer.addEventListener('pointerdown', event => {
-  if (event.button !== 0 || sidebarDrag) return;
-  event.preventDefault();
-  sidebarDrag = { pointerId: event.pointerId, x: event.clientX, width: $('sidebar').getBoundingClientRect().width };
-  sidebarResizer.setPointerCapture(event.pointerId);
-  sidebarResizer.focus();
-  document.body.classList.add('resizing-sidebar');
+toggleSidebar.addEventListener('click', () => {
+  sidebarCollapsed = !sidebarCollapsed;
+  renderSidebar();
+  try { localStorage.setItem('sidebarCollapsed', String(sidebarCollapsed)); } catch {}
 });
-sidebarResizer.addEventListener('pointermove', event => {
-  if (sidebarDrag?.pointerId !== event.pointerId) return;
-  applySidebarWidth(sidebarDrag.width + event.clientX - sidebarDrag.x);
-});
-function finishSidebarResize(event) {
-  if (sidebarDrag?.pointerId !== event.pointerId) return;
-  sidebarDrag = null;
-  document.body.classList.remove('resizing-sidebar');
-  if (sidebarResizer.hasPointerCapture(event.pointerId)) sidebarResizer.releasePointerCapture(event.pointerId);
-  saveSidebarWidth(Number(sidebarResizer.getAttribute('aria-valuenow')));
-}
-for (const name of ['pointerup', 'pointercancel', 'lostpointercapture']) sidebarResizer.addEventListener(name, finishSidebarResize);
-sidebarResizer.addEventListener('keydown', event => {
-  const current = Number(sidebarResizer.getAttribute('aria-valuenow'));
-  const step = event.shiftKey ? 40 : 10;
-  const widths = { ArrowLeft: current - step, ArrowRight: current + step, Home: SIDEBAR_MIN, End: Number(sidebarResizer.getAttribute('aria-valuemax')) };
-  if (!(event.key in widths)) return;
-  event.preventDefault(); saveSidebarWidth(applySidebarWidth(widths[event.key]));
-});
-sidebarResizer.addEventListener('dblclick', () => saveSidebarWidth(applySidebarWidth(SIDEBAR_DEFAULT)));
-window.addEventListener('resize', () => applySidebarWidth(preferredSidebarWidth));
-applySidebarWidth(preferredSidebarWidth);
+renderSidebar();
