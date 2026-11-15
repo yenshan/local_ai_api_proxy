@@ -5,7 +5,8 @@ async function exportCommunicationLogs({ parent, dialog, rows }) {
   const communications = rows.filter(row => row.method === 'POST' && /^\/v1\/(chat\/completions|responses)(?:\?|$)/.test(row.path) && row.request).slice().reverse();
   const json = JSON.stringify(communications, null, 2);
   const result = await dialog.showSaveDialog(parent, {
-    title: '通信ログをJSONで保存',
+    title: 'Export traffic log as JSON',
+    buttonLabel: 'Save',
     defaultPath: `communication-logs-${new Date().toISOString().replace(/[:.]/g, '-')}.json`,
     filters: [{ name: 'JSON', extensions: ['json'] }],
   });

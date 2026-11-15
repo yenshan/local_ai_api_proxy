@@ -44,12 +44,12 @@ test('Antigravity catalog, HTTP health, backend selection persistence and switch
  assert.equal((await (await fetch(`http://127.0.0.1:${port}/health`)).json()).backend,'antigravity');
  const models=await (await fetch(`http://127.0.0.1:${port}/v1/models`)).json();
  assert.deepEqual(models.data.map(m=>m.id),['gemini-test','claude-test']);assert.equal(models.data[0].owned_by,'antigravity');
- assert.throws(()=>server.configure({backend:'codex'}),/停止/);
+ assert.throws(()=>server.configure({backend:'codex'}),/Stop the server/);
  await server.stop();
  assert.equal(new LocalServer({directory}).settings.backend,'antigravity');
  server.configure({backend:'codex'});assert.equal(server.settings.model,undefined);assert.deepEqual(server.models,[]);
  assert.throws(()=>server.configure({backend:'unknown'}),/Invalid backend/);
- assert.throws(()=>parseModels('Fetching models...'),/モデル一覧/);
+ assert.throws(()=>parseModels('Fetching models...'),/Antigravity models/);
 });
 test('Antigravity uses separate CLI processes, maps usage and streams without duplicated final text', async t=> {
  const {server,post}=await setup(t);

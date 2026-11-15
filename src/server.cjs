@@ -25,7 +25,7 @@ class LocalServer extends EventEmitter {
     } catch {}
     this.store.on('change', row => this.emit('log', row));
     this.store.on('reset', () => this.emit('reset'));
-    this.store.on('storageError', message => { this.error = `ログ保存失敗: ${message}`; this.emitState(); });
+    this.store.on('storageError', message => { this.error = `Failed to save logs: ${message}`; this.emitState(); });
   }
   snapshot() { return { state: this.state, error: this.error, settings: this.settings, models: this.models, account: this.account, diagnostics: this.diagnostics, logDirectory: this.store.directory, baseURL: `http://127.0.0.1:${this.settings.port}/v1` }; }
   emitState() { this.emit('state', this.snapshot()); }
@@ -33,8 +33,8 @@ class LocalServer extends EventEmitter {
     const next = { ...this.settings };
     for (const key of Object.keys(DEFAULTS)) if (settings[key] !== undefined) next[key] = settings[key];
     next.port = Number(next.port); next.timeout = Number(next.timeout);
-    if (!Number.isInteger(next.port) || next.port < 1024 || next.port > 65535) throw new Error('ポートは 1024〜65535 を指定してください');
-    if (!Number.isFinite(next.timeout) || next.timeout < 10 || next.timeout > 3600) throw new Error('タイムアウトは 10〜3600 秒を指定してください');
+    if (!Number.isInteger(next.port) || next.port < 1024 || next.port > 65535) throw new Error('Port must be an integer between 1024 and 65535.');
+    if (!Number.isFinite(next.timeout) || next.timeout < 10 || next.timeout > 3600) throw new Error('Timeout must be between 10 and 3600 seconds.');
     if (!['codex', 'antigravity'].includes(next.backend)) throw new Error('Invalid backend');
     for (const key of ['binary', 'antigravityBinary']) if (typeof next[key] !== 'string') throw new Error(`Invalid ${key}`);
     return next;
@@ -46,17 +46,17 @@ class LocalServer extends EventEmitter {
     this.emitState(); return this.snapshot();
   }
   configure(settings) {
-    if (this.state !== 'stopped' && this.state !== 'error') throw new Error('設定を変更する前にサーバーを停止してください');
+    if (this.state !== 'stopped' && this.state !== 'error') throw new Error('Stop the server before changing settings.');
     return this.commitSettings(this.validateSettings(settings));
   }
   applySettings(settings) {
-    if (!['stopped', 'error'].includes(this.state)) return Promise.reject(new Error('設定を変更する前にサーバーを停止してください'));
+    if (!['stopped', 'error'].includes(this.state)) return Promise.reject(new Error('Stop the server before changing settings.'));
     this.settingsUpdate = (this.settingsUpdate || Promise.resolve()).catch(() => {}).then(() => this.configure(settings));
     return this.settingsUpdate;
   }
   async start() {
     if (this.state === 'running') return this.snapshot();
-    if (this.state === 'starting' || this.state === 'stopping') throw new Error('起動・停止処理中です');
+    if (this.state === 'starting' || this.state === 'stopping') throw new Error('The server is starting or stopping.');
     if (this.rpc || this.http) await this.stop();
     this.state = 'starting'; this.models = []; this.account = null; this.requiresLogin = false; this.error = null; this.emitState();
     try {
@@ -78,7 +78,7 @@ class LocalServer extends EventEmitter {
         const account = await this.rpc.call('account/read', { refreshToken: false });
         this.account = account.account ? { type: account.account.type, planType: account.account.planType } : null;
         this.requiresLogin = account.requiresOpenaiAuth && !account.account;
-        if (this.requiresLogin) this.error = 'Codex にログインしていません。ターミナルで codex login を実行し、サーバーを再起動してください。';
+        if (this.requiresLogin) this.error = 'Codex is not signed in. Run codex login in a terminal, then restart the server.';
       } else {
         this.account = { type: 'Antigravity CLI' };
       }
@@ -97,7 +97,7 @@ class LocalServer extends EventEmitter {
   }
   async refreshModels() {
     const rpc = this.rpc; const backend = this.settings.backend;
-    if (!rpc) throw new Error('サーバーを起動してください');
+    if (!rpc) throw new Error('Start the server first.');
     if (backend === 'antigravity') {
       const models = await rpc.listModels();
       if (this.rpc !== rpc || this.settings.backend !== backend) return this.models;

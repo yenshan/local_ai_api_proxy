@@ -36,7 +36,11 @@
         "dir"
       ],
       "extendInfo": {
-        "NSLocalNetworkUsageDescription": "Serve a local API for application testing."
+        "NSLocalNetworkUsageDescription": "Serve a local API for application testing.",
+        "CFBundleDevelopmentRegion": "en",
+        "CFBundleLocalizations": [
+          "en"
+        ]
       }
     },
     "directories": {

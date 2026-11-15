@@ -17,6 +17,7 @@ test('JSON export captures visible communications in display order with full dat
   const rows = [latest, { method: 'GET', path: '/v1/models', response: {} }, { method: 'POST', path: '/v1/chat/completions', request: null }, oldest, { method: 'GET', path: '/health' }];
   const parent = {};
   const dialog = { showSaveDialog: async (window, options) => {
+    assert.equal(options.title, 'Export traffic log as JSON'); assert.equal(options.buttonLabel, 'Save');
     assert.equal(window, parent); assert.match(options.defaultPath, /^communication-logs-.*\.json$/);
     assert.deepEqual(options.filters, [{ name: 'JSON', extensions: ['json'] }]);
     latest.text = '生成完了';

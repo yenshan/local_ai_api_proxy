@@ -19,7 +19,7 @@ function parseModels(output) {
     const match = line.match(/^([a-z0-9][a-z0-9._-]*)[\t ]+(.+)$/);
     if (match && !models.some(m => m.model === match[1])) models.push({ id: match[1], model: match[1], displayName: match[2].trim(), supportedReasoningEfforts: [], isDefault: false });
   }
-  if (!models.length) throw new Error('Antigravity のモデル一覧を取得できませんでした。agy にログインしているか確認してください。');
+  if (!models.length) throw new Error('Could not load Antigravity models. Sign in with agy and try again.');
   models[0].isDefault = true;
   return models;
 }
@@ -44,7 +44,7 @@ class AntigravityBackend extends EventEmitter {
       const abort = () => finish(signal.reason || new Error('Request cancelled'));
       const timer = setTimeout(() => finish(new APIError('Antigravity timed out', 504, null, 'timeout')), timeout);
       this.jobs.add(cancel); signal?.addEventListener('abort', abort, { once: true });
-      child.on('error', err => finish(new Error(`Antigravity: ${err.message}. agy のインストールと実行ファイル設定を確認してください。`)));
+      child.on('error', err => finish(new Error(`Antigravity: ${err.message}. Check your agy installation and executable path.`)));
       child.stdin.on('error', err => { if (err.code !== 'EPIPE') finish(err); });
       child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
       child.stderr.on('data', data => { stderr = (stderr + data.toString()).slice(-8000); });
@@ -63,7 +63,7 @@ class AntigravityBackend extends EventEmitter {
         clearTimeout(killTimer);
         if (settled) return;
         try { if (onEvent && buffer.trim()) line(buffer); } catch (err) { finish(err); return; }
-        finish(code === 0 ? null : new Error(`Antigravity exited (${code}): ${stderr || 'agy でログインしてから再試行してください。'}`));
+        finish(code === 0 ? null : new Error(`Antigravity exited (${code}): ${stderr || 'Sign in with agy and try again.'}`));
       });
       child.stdin.end(input);
       if (signal?.aborted) abort();

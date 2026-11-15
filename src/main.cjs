@@ -3,6 +3,7 @@ const path = require('node:path');
 const fs = require('node:fs');
 const { LocalServer } = require('./server.cjs');
 const { exportCommunicationLogs } = require('./export.cjs');
+app.commandLine.appendSwitch('lang', 'en-US');
 // Keep the existing settings, logs and Chromium preferences after renaming.
 const legacyUserData = path.join(app.getPath('appData'), app.isPackaged ? 'Codex Local API' : 'codex-local-api');
 fs.mkdirSync(legacyUserData, { recursive: true });
@@ -38,7 +39,7 @@ app.whenReady().then(async () => {
   ipcMain.handle('open-logs', () => shell.openPath(server.store.directory));
   ipcMain.handle('export', () => exportCommunicationLogs({ parent: window, dialog, rows: server.store.list() }));
   ipcMain.handle('test-request', async (_, body) => {
-    if (server.state !== 'running') throw new Error('サーバーを起動してください');
+    if (server.state !== 'running') throw new Error('Start the server first.');
     const response = await fetch(`http://127.0.0.1:${server.settings.port}/v1/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout((server.settings.timeout + 35) * 1000) });
     const json = await response.json(); if (!response.ok) throw new Error(json.error?.message || response.statusText);
     return json;
@@ -52,8 +53,28 @@ app.whenReady().then(async () => {
     window.loadFile(path.join(__dirname, '..', 'ui', 'index.html'));
   }
   Menu.setApplicationMenu(Menu.buildFromTemplate([
-    { label: app.name, submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
-    { role: 'editMenu' }, { role: 'viewMenu' }, { role: 'windowMenu' }
+    { label: app.name, submenu: [
+      { role: 'about', label: `About ${app.name}` }, { type: 'separator' },
+      { role: 'hide', label: `Hide ${app.name}` }, { role: 'hideOthers', label: 'Hide Others' },
+      { role: 'unhide', label: 'Show All' }, { type: 'separator' }, { role: 'quit', label: `Quit ${app.name}` }
+    ] },
+    { label: 'Edit', submenu: [
+      { role: 'undo', label: 'Undo' }, { role: 'redo', label: 'Redo' }, { type: 'separator' },
+      { role: 'cut', label: 'Cut' }, { role: 'copy', label: 'Copy' }, { role: 'paste', label: 'Paste' },
+      { role: 'pasteAndMatchStyle', label: 'Paste and Match Style' }, { role: 'delete', label: 'Delete' },
+      { type: 'separator' }, { role: 'selectAll', label: 'Select All' },
+      { label: 'Speech', submenu: [{ role: 'startSpeaking', label: 'Start Speaking' }, { role: 'stopSpeaking', label: 'Stop Speaking' }] }
+    ] },
+    { label: 'View', submenu: [
+      { role: 'reload', label: 'Reload' }, { role: 'forceReload', label: 'Force Reload' },
+      { role: 'toggleDevTools', label: 'Toggle Developer Tools' }, { type: 'separator' },
+      { role: 'resetZoom', label: 'Actual Size' }, { role: 'zoomIn', label: 'Zoom In' }, { role: 'zoomOut', label: 'Zoom Out' },
+      { type: 'separator' }, { role: 'togglefullscreen', label: 'Toggle Full Screen' }
+    ] },
+    { label: 'Window', submenu: [
+      { role: 'minimize', label: 'Minimize' }, { role: 'zoom', label: 'Zoom' }, { role: 'close', label: 'Close Window' },
+      { type: 'separator' }, { role: 'front', label: 'Bring All to Front' }
+    ] }
   ]));
   createWindow();
   app.on('activate', () => { if (!BrowserWindow.getAllWindows().length) createWindow(); });
@@ -63,7 +84,7 @@ app.whenReady().then(async () => {
       if (process.argv.includes('--smoke-antigravity')) server.configure({ backend: 'antigravity' });
       await server.start();
       const state = await window.webContents.executeJavaScript('document.querySelector("#statusLabel").textContent');
-      if (state !== '稼働中') throw new Error(`Unexpected GUI status: ${state}`);
+      if (state !== 'Running') throw new Error(`Unexpected GUI status: ${state}`);
       if (process.argv.includes('--smoke-inference')) {
         const model = (server.settings.backend === 'antigravity' && server.models.find(m => m.model.endsWith('-low'))) || server.models.find(m => m.isDefault) || server.models[0];
         const post = async (endpoint, body) => {

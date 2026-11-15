@@ -3,7 +3,7 @@ let snapshot = { state: 'stopped', settings: {}, models: [] };
 let rows = []; let clearingLogs = false; let exportingLogs = false; let pending = false; let playgroundBusy = false; let toastTimer;
 let settingsSignature = '';
 let settingsDirty = false; let settingsBusy = false; let settingsTimer; let settingsLocked = false;
-const statusNames = { stopped: '停止中', starting: '起動中', running: '稼働中', stopping: '停止中…', error: '接続エラー' };
+const statusNames = { stopped: 'Stopped', starting: 'Starting…', running: 'Running', stopping: 'Stopping…', error: 'Connection Error' };
 function el(tag, className, text) { const node = document.createElement(tag); if (className) node.className = className; if (text !== undefined) node.textContent = text; return node; }
 function toast(message) { $('toast').textContent = message; $('toast').hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => $('toast').hidden = true, 4500); }
 async function call(method, arg) { try { return await window.api.call(method, arg); } catch (err) { toast(err.message.replace(/^Error invoking remote method '[^']+': Error: /, '')); throw err; } }
@@ -20,7 +20,7 @@ function renderPlayground() {
   const models = playgroundModels();
   const changedBackend = $('settingsForm').elements.backend.value !== snapshot.settings.backend;
   const model = models.find(m => m.isDefault) || models[0];
-  const emptyLabel = changedBackend ? '設定を反映中…' : 'サーバー起動後にモデルを取得';
+  const emptyLabel = changedBackend ? 'Applying settings…' : 'Start the server to load models';
   $('modelSummary').textContent = models.length ? `${model?.displayName || model?.model} · ${models.length} models` : emptyLabel;
   $('refreshModels').disabled = settingsDirty || settingsBusy || changedBackend || snapshot.state !== 'running';
   $('toggleServer').disabled = pending || settingsDirty || settingsBusy || ['starting', 'stopping'].includes(snapshot.state) || (changedBackend && snapshot.state !== 'running');
@@ -36,7 +36,7 @@ function renderState() {
   $('statusLabel').textContent = statusNames[snapshot.state];
   $('statusDot').className = `dot ${snapshot.state === 'running' ? 'running' : ''}`;
   $('statusDot').style.background = snapshot.state === 'running' ? '#23845c' : snapshot.state === 'error' ? '#bd5437' : '#84948b';
-  $('toggleServer').textContent = snapshot.state === 'running' ? 'サーバーを停止' : 'サーバーを起動';
+  $('toggleServer').textContent = snapshot.state === 'running' ? 'Stop Server' : 'Start Server';
   $('toggleServer').classList.toggle('stop', snapshot.state === 'running');
   $('toggleServer').disabled = pending || ['starting','stopping'].includes(snapshot.state);
   $('baseURL').textContent = snapshot.baseURL || 'http://127.0.0.1:8787/v1';
@@ -48,7 +48,7 @@ function renderState() {
 function renderPlaygroundEffort(current = '') {
   const select = $('testEffort');
   select.replaceChildren();
-  const option = el('option', '', 'モデルの既定値'); option.value = ''; select.append(option);
+  const option = el('option', '', 'Model default'); option.value = ''; select.append(option);
   const model = playgroundModels().find(m => m.model === $('testModel').value);
   const efforts = snapshot.settings.backend === 'antigravity' ? [] : model?.supportedReasoningEfforts || [];
   for (const entry of efforts) { const option = el('option', '', entry.reasoningEffort); option.value = entry.reasoningEffort; select.append(option); }
@@ -63,18 +63,21 @@ function contentText(value) {
 }
 function message(role, value, isStreaming = false) {
   const safeRole = ['system', 'developer', 'user', 'assistant', 'error'].includes(role) ? role : 'user';
-  const labels = { system: '指示', developer: '指示', user: '送信', assistant: '応答', error: 'エラー' };
+  const labels = { system: 'System', developer: 'Developer', user: 'Request', assistant: 'Response', error: 'Error' };
   const block = el('div', `message-block ${safeRole}`);
   block.append(el('div', 'message-role', labels[safeRole]));
   block.append(el('div', `message-text${isStreaming ? ' streaming-cursor' : ''}`, contentText(value)));
   return block;
 }
 const communicationNodes = new Map();
-const logDateFormat = new Intl.DateTimeFormat('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+function formatLogDate(date) {
+  const pad = value => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
 function render() {
   const activeLogs = rows.some(row => row.status === 'running');
   $('clearLogs').disabled = clearingLogs || exportingLogs || activeLogs || !rows.length;
-  $('clearLogs').title = activeLogs ? '通信の完了後にクリアできます' : '保存済みの通信ログをすべてクリア';
+  $('clearLogs').title = activeLogs ? 'Wait for all requests to finish before clearing logs' : 'Clear all saved logs';
   const panel = $('communicationLog');
   const atBottom = panel.scrollHeight - panel.scrollTop - panel.clientHeight < 50;
   const oldScroll = panel.scrollTop;
@@ -83,7 +86,7 @@ function render() {
   const ids = new Set(communications.map(row => row.id));
   for (const [id, node] of communicationNodes) if (!ids.has(id)) { node.remove(); communicationNodes.delete(id); }
   panel.querySelector('.empty-log')?.remove();
-  if (!communications.length) panel.append(el('div', 'empty-log', '通信を待っています…'));
+  if (!communications.length) panel.append(el('div', 'empty-log', 'Waiting for requests…'));
   for (const row of communications) {
     let node = communicationNodes.get(row.id);
     if (!node) { node = el('article', 'communication'); communicationNodes.set(row.id, node); panel.append(node); }
@@ -92,13 +95,13 @@ function render() {
     node.replaceChildren();
     const date = new Date(row.time);
     if (Number.isFinite(date.getTime())) {
-      const time = el('time', 'communication-time', logDateFormat.format(date));
+      const time = el('time', 'communication-time', formatLogDate(date));
       time.dateTime = date.toISOString(); node.append(time);
     }
     if (row.request.instructions) node.append(message('system', row.request.instructions));
     const messages = Array.isArray(row.request.messages) ? row.request.messages : (Array.isArray(row.request.input) ? row.request.input : [{ role: 'user', content: row.request.input }]);
     for (const entry of messages) if (entry && contentText(entry.content)) node.append(message(entry.role, entry.content));
-    if (row.text || row.status === 'running') node.append(message('assistant', row.text || '応答を待っています…', row.status === 'running'));
+    if (row.text || row.status === 'running') node.append(message('assistant', row.text || 'Waiting for a response…', row.status === 'running'));
     if (row.error) node.append(message('error', row.error));
   }
   panel.scrollTop = atBottom ? panel.scrollHeight : oldScroll;
@@ -110,24 +113,24 @@ click('toggleServer', async () => {
 click('exportLogs', async () => {
   if ($('exportLogs').disabled) return;
   exportingLogs = true; render();
-  try { if (await call('export')) toast('通信ログをJSONで保存しました'); }
+  try { if (await call('export')) toast('Traffic log saved as JSON.'); }
   finally { exportingLogs = false; render(); }
 });
 click('clearLogs', async () => {
   if ($('clearLogs').disabled) return;
   clearingLogs = true; render();
-  try { await call('clear'); toast('通信ログをクリアしました'); }
+  try { await call('clear'); toast('Traffic log cleared.'); }
   finally { clearingLogs = false; render(); }
 });
-click('copyURL', async () => { await navigator.clipboard.writeText(snapshot.baseURL); toast('エンドポイントをコピーしました'); });
-click('refreshModels', async () => { await call('models'); toast('モデル一覧を更新しました'); });
+click('copyURL', async () => { await navigator.clipboard.writeText(snapshot.baseURL); toast('Endpoint URL copied.'); });
+click('refreshModels', async () => { await call('models'); toast('Model list refreshed.'); });
 function renderSettings() {
   const form = $('settingsForm');
   const locked = !['stopped', 'error'].includes(snapshot.state);
   if (locked) {
     clearTimeout(settingsTimer); settingsDirty = false; settingsSignature = '';
-    settingsStatus('設定変更はサーバー停止後に行えます。');
-  } else if (settingsLocked) settingsStatus('変更は自動で反映されます。');
+    settingsStatus('Stop the server to change settings.');
+  } else if (settingsLocked) settingsStatus('Changes are saved automatically.');
   settingsLocked = locked;
   const settingsKey = JSON.stringify(snapshot.settings);
   if (!settingsDirty && settingsKey !== settingsSignature) {
@@ -150,15 +153,15 @@ async function applyFormSettings() {
   clearTimeout(settingsTimer);
   if (settingsBusy || !settingsDirty || !['stopped', 'error'].includes(snapshot.state)) return;
   const form = $('settingsForm');
-  if (!form.checkValidity()) { settingsStatus('有効な設定値を入力してください。', true); return; }
+  if (!form.checkValidity()) { settingsStatus('Enter valid settings.', true); return; }
   const data = Object.fromEntries(new FormData(form));
   const focused = form.contains(document.activeElement) ? document.activeElement : null;
   const selection = focused?.type === 'text' ? [focused.selectionStart, focused.selectionEnd] : null;
-  settingsBusy = true; settingsStatus('設定を反映中…'); renderState();
+  settingsBusy = true; settingsStatus('Applying settings…'); renderState();
   try {
     snapshot = await window.api.call('configure', data);
     settingsDirty = false;
-    settingsStatus('変更を反映しました。');
+    settingsStatus('Changes applied.');
   } catch (err) {
     settingsDirty = !Object.entries(data).every(([key, value]) => String(snapshot.settings[key]) === value);
     settingsStatus(err.message.replace(/^Error invoking remote method '[^']+': Error: /, ''), true);
@@ -177,7 +180,7 @@ function settingsChanged(event, immediate) {
   clearTimeout(settingsTimer);
   backendFields();
   if (event.target.name === 'backend') { $('testModel').replaceChildren(); $('testEffort').value = ''; $('testResult').hidden = true; }
-  settingsStatus('設定を反映中…'); renderPlayground();
+  settingsStatus('Applying settings…'); renderPlayground();
   if (immediate) applyFormSettings();
   else settingsTimer = setTimeout(applyFormSettings, 400);
 }
@@ -187,8 +190,8 @@ $('settingsForm').addEventListener('submit', event => { event.preventDefault(); 
 $('playgroundForm').addEventListener('submit', async event => {
   event.preventDefault();
   if (playgroundBusy || settingsDirty || settingsBusy || snapshot.state !== 'running' || !playgroundModels().some(model => model.model === $('testModel').value)) return;
-  playgroundBusy = true; $('sendTest').disabled = true; $('sendTest').textContent = '生成中…';
-  const result = $('testResult'); result.hidden = false; result.classList.remove('error'); result.textContent = 'AI の応答を待っています…';
+  playgroundBusy = true; $('sendTest').disabled = true; $('sendTest').textContent = 'Generating…';
+  const result = $('testResult'); result.hidden = false; result.classList.remove('error'); result.textContent = 'Waiting for a response…';
   try {
     const messages = [{ role: 'user', content: $('testPrompt').value }];
     const effort = $('testEffort').value;
@@ -196,7 +199,7 @@ $('playgroundForm').addEventListener('submit', async event => {
       ...(effort && snapshot.settings.backend !== 'antigravity' ? { reasoning_effort: effort } : {}) });
     result.textContent = response.choices[0].message.content;
   } catch (err) { result.classList.add('error'); result.textContent = err.message; }
-  finally { playgroundBusy = false; renderState(); $('sendTest').textContent = '▷ リクエストを送信'; }
+  finally { playgroundBusy = false; renderState(); $('sendTest').textContent = '▷ Send Request'; }
 });
 window.api.on('state', state => { snapshot = state; renderState(); });
 window.api.on('log', row => { const index = rows.findIndex(r => r.id === row.id); if (index < 0) rows.unshift(row); else rows[index] = row; rows = rows.slice(0,300); render(); });
@@ -209,7 +212,7 @@ try { sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true'; } 
 function renderSidebar() {
   document.documentElement.classList.toggle('sidebar-collapsed', sidebarCollapsed);
   toggleSidebar.setAttribute('aria-expanded', String(!sidebarCollapsed));
-  const label = sidebarCollapsed ? 'サイドバーを開く' : 'サイドバーを閉じる';
+  const label = sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar';
   toggleSidebar.setAttribute('aria-label', label); toggleSidebar.title = label;
   $('sidebarToggleIcon').textContent = sidebarCollapsed ? '›' : '‹';
 }

@@ -207,7 +207,7 @@ test('all settings changes are rejected while running, starting or stopping', as
   const original = { ...server.settings }; const httpServer = server.http; const rpc = server.rpc;
   const saved = fs.readFileSync(path.join(directory, 'settings.json'), 'utf8');
   for (const settings of [{ timeout: 90 }, { port: 8899 }, { backend: 'antigravity' }, { binary: '/new/codex' }, { antigravityBinary: '/new/agy' }]) {
-    await assert.rejects(server.applySettings(settings), /停止/);
+    await assert.rejects(server.applySettings(settings), /Stop the server/);
     assert.deepEqual(server.settings, original);
   }
   assert.equal(server.http, httpServer); assert.equal(server.rpc, rpc);
@@ -215,7 +215,7 @@ test('all settings changes are rejected while running, starting or stopping', as
   assert.equal((await fetch(`${url}/health`)).status, 200);
   for (const state of ['starting', 'stopping']) {
     server.state = state;
-    await assert.rejects(server.applySettings({ timeout: 90 }), /停止/);
+    await assert.rejects(server.applySettings({ timeout: 90 }), /Stop the server/);
   }
   server.state = 'running';
 });
@@ -226,7 +226,7 @@ test('settings auto-save while stopped and respect validation and update orderin
   assert.equal(server.state, 'stopped'); assert.equal(server.settings.backend, 'antigravity');
   assert.deepEqual(server.models, []);
   assert.equal(JSON.parse(fs.readFileSync(path.join(directory, 'settings.json'))).timeout, 90);
-  await assert.rejects(server.applySettings({ port: 8 }), /ポート/);
+  await assert.rejects(server.applySettings({ port: 8 }), /Port/);
   await Promise.all([server.applySettings({ timeout: 91 }), server.applySettings({ timeout: 92 })]);
   assert.equal(server.settings.timeout, 92);
   server.state = 'error';

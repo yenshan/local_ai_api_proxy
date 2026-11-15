@@ -13,7 +13,7 @@ class LogStore extends EventEmitter {
       const fd = fs.openSync(this.file, 'r'); const buffer = Buffer.alloc(length);
       fs.readSync(fd, buffer, 0, length, stat.size - length); fs.closeSync(fd);
       const lines = buffer.toString('utf8').split('\n');
-      for (const line of lines) { try { const row = JSON.parse(line); if (row.status === 'running') { row.status = 'interrupted'; row.error = 'アプリ終了により中断されました'; } this.rows.push(row); } catch {} }
+      for (const line of lines) { try { const row = JSON.parse(line); if (row.status === 'running') { row.status = 'interrupted'; row.error = 'Interrupted when the app closed.'; } this.rows.push(row); } catch {} }
       this.rows = this.rows.slice(-300).reverse();
     }
   }
@@ -26,6 +26,6 @@ class LogStore extends EventEmitter {
     } catch (err) { this.writeError = err.message; this.emit('storageError', err.message); }
   }
   list() { return this.rows; }
-  clear() { if (this.rows.some(r => r.status === 'running')) throw new Error('実行中のリクエストがあります'); this.rows = []; for (const f of [this.file, this.file + '.1']) fs.rmSync(f, { force: true }); this.emit('reset'); }
+  clear() { if (this.rows.some(r => r.status === 'running')) throw new Error('Requests are still running. Wait for them to finish before clearing logs.'); this.rows = []; for (const f of [this.file, this.file + '.1']) fs.rmSync(f, { force: true }); this.emit('reset'); }
 }
 module.exports = { LogStore };

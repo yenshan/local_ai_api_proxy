@@ -1,83 +1,84 @@
 # Local AI API Proxy
 
-![Local AI API Proxy の画面：サーバー設定・接続テスト・通信ログ](docs/images/app-screenshot.png)
+![Local AI API Proxy: server settings, connection test, and traffic log](docs/images/app-screenshot.png)
 
-*Codex app-server で実際に接続テストを行った画面です。撮影時は別ポートを使用しています。既定の Base URL は `http://127.0.0.1:8787/v1` です。*
+*A real connection test using Codex app-server. The screenshot uses a separate test port; the default base URL is `http://127.0.0.1:8787/v1`.*
 
-Codex app-server または Antigravity CLI を通して、ローカルの OpenAI API 互換 REST API を提供する Mac アプリです。外部アプリからの通信を受け付け、送信メッセージと AI の応答を同じ画面で確認できます。推論は各 CLI の接続先で実行されるため、利用する CLI のインストール・ログインとネットワーク接続が必要です。
+A Mac app that exposes a local, OpenAI-compatible REST API through Codex app-server or Antigravity CLI. Connect your applications and inspect their requests and AI responses in one window. Inference runs through the selected CLI's provider, so an installed, authenticated CLI and a network connection are required.
 
-## 主な機能
+## Features
 
-- Codex app-server / Antigravity CLI の切り替え。
-- OpenAI 互換の Chat Completions / Responses API、SSE、JSON Schema 出力。
-- 左サイドバーのサーバー設定、中央の接続テスト、右側の通信ログを常時表示。
-- 設定の自動保存と、サーバー稼働中の設定変更ロック。
-- 秒までの日時付きログ、JSON エクスポート、ログのクリア。
-- サイドバーの開閉と、開閉状態の保存。
+- Switch between Codex app-server and Antigravity CLI.
+- OpenAI-compatible Chat Completions and Responses APIs, SSE streaming, and JSON Schema output.
+- Server settings, a connection test, and a traffic log in one window.
+- Automatically saved settings, locked while the server is running.
+- Local timestamps with seconds, JSON export, and log clearing.
+- A collapsible sidebar with its state remembered across launches.
+- English interface, notifications, validation messages, and application menus.
 
-## 起動する
+## Getting started
 
-### 準備
+### Requirements
 
-macOS、Node.js、npm と、利用するバックエンドの CLI を準備してください。
+Install Node.js and npm on macOS, and install and sign in to the backend you want to use.
 
-| バックエンド | ログイン・確認 | 実行ファイルの自動検出 |
+| Backend | Authentication and verification | Executable discovery order |
 | --- | --- | --- |
-| Codex app-server | `codex login` | `/opt/homebrew/bin/codex`、`/usr/local/bin/codex`、`/Applications/Codex.app/Contents/Resources/codex`、PATH の順 |
-| Antigravity CLI | `agy` を起動してログイン。`agy models` でモデルを確認 | `~/.local/bin/agy`、`/opt/homebrew/bin/agy`、`/usr/local/bin/agy`、PATH の順 |
+| Codex app-server | Run `codex login` | `/opt/homebrew/bin/codex`, `/usr/local/bin/codex`, `/Applications/Codex.app/Contents/Resources/codex`, then PATH |
+| Antigravity CLI | Launch `agy` to sign in; check models with `agy models` | `~/.local/bin/agy`, `/opt/homebrew/bin/agy`, `/usr/local/bin/agy`, then PATH |
 
-Antigravity は非対話実行に対応する **`agy` CLI** を使用します。IDE 用の `antigravity` コマンドとは異なります。認証情報をこのアプリに入力する必要はありません。
+Antigravity requires the **`agy` CLI** with non-interactive execution support, rather than the IDE's `antigravity` command. The app uses the CLI's existing credentials.
 
-初回はプロジェクト内で依存パッケージをインストールします。
+Install dependencies once, then launch the app:
 
 ```sh
 npm ci
 ./start.sh
 ```
 
-以降は `./start.sh` で起動できます。別のディレクトリからスクリプトの絶対パスを指定しても起動できます。
+For subsequent launches, run `./start.sh`. You can also invoke the script by its absolute path from another directory.
 
-### サーバーを起動・切り替える
+### Starting and switching backends
 
-1. 左の「サーバー設定」で AI バックエンドを選択します。必要ならポート、実行ファイルの絶対パス、生成タイムアウトを変更します。
-2. 設定は自動保存されます。保存ボタンはありません。入力エラーや反映結果はサイドバー下部に表示されます。
-3. URL 表示エリアの右側にある「サーバーを起動」を押します。選択したバックエンドからモデル一覧を取得し、API の待ち受けを開始します。
-4. バックエンドや接続設定を変更するときは、「サーバーを停止」を押してから変更し、再び起動します。
+1. Select **AI Backend** in the left-hand **Server Settings** panel. If needed, change the port, executable path, or generation timeout.
+2. Settings are saved automatically. There is no Save button. Validation errors and save status appear at the bottom of the sidebar.
+3. Click **Start Server**, next to the endpoint URL. The app loads models from the selected backend and starts listening for API requests.
+4. To change settings or switch backends, click **Stop Server**, make your changes, and start the server again.
 
-**稼働中・起動中・停止処理中は、サーバー設定の全項目を編集できません。** 停止すると再び編集できます。サーバーを停止すると、実行中の生成も中断します。
+**All server settings are disabled while the server is running, starting, or stopping.** Stop the server to edit them. Stopping the server also interrupts active requests.
 
-| 設定 | 既定値・範囲 |
+| Setting | Default and range |
 | --- | --- |
-| AI バックエンド | 初回は Codex app-server。以降は保存した設定を使用 |
-| 待ち受けポート | `8787`。`1024`〜`65535` |
-| 実行ファイル | 空欄なら自動検出 |
-| 生成タイムアウト | `180` 秒。`10`〜`3600` 秒 |
+| AI Backend | Codex app-server on first launch; saved selection thereafter |
+| Port | `8787`; valid range: `1024`–`65535` |
+| Executable | Leave blank for automatic discovery |
+| Generation Timeout | `180` seconds; valid range: `10`–`3600` seconds |
 
-サイドバーは固定幅です。上部の「Local AI API Proxy」の右端にあるボタンで開閉します。閉じた状態でも、左端に残るボタンから開き直せます。開閉状態は次回起動時にも保持されます。
+The sidebar has a fixed width. Use the button at the right end of the app title to collapse it. The button remains accessible when collapsed, and the app remembers the open or closed state.
 
-## 接続テストと通信ログ
+## Connection test and traffic log
 
-「接続テスト」でモデルとメッセージを指定し、「リクエストを送信」を押すと、ローカル API を通して接続を確認できます。サーバー設定に既定モデルや推論レベルを保存する機能はありません。
+In **Connection Test**, select a model, enter a message, and click **Send Request**. The request goes through the local API. There are no saved default-model or reasoning-level settings in the server settings panel.
 
-- **Codex:** 選択モデルが対応する推論レベルを選択できます。「モデルの既定値」では `reasoning_effort` を送信しません。
-- **Antigravity:** 推論レベル欄は選択不可です。強度の違いがある場合は、`-low` / `-medium` / `-high` などを含むモデル名から選択してください。
+- **Codex:** Choose from the selected model's supported reasoning levels. **Model default** omits `reasoning_effort` from the request.
+- **Antigravity:** The reasoning-level selector is disabled. Select a model with a suffix such as `-low`, `-medium`, or `-high` when these variants are available.
 
-モデル一覧はサーバー起動時、`GET /v1/models`、URL 表示エリアの更新ボタンで取得します。モデルの実際の利用可否は、アカウントや接続先に依存します。
+Models are refreshed at server startup, on `GET /v1/models`, and with the refresh button beside the endpoint. Whether a listed model is usable depends on your account and provider.
 
-右の「通信ログ」には、Chat Completions / Responses の送信メッセージ、AI の応答、エラーを日時順に表示します。日時はこの Mac の時刻で、秒まで表示します。生成中の応答も随時更新します。ヘルスチェックやモデル一覧取得の通信は、この欄には表示しません。
+**Traffic Log** shows Chat Completions and Responses request messages, AI responses, and errors in chronological order. Timestamps use this Mac's local time and the format `YYYY-MM-DD HH:mm:ss`. Responses update as they are generated. Health checks and model-list requests are not shown in this panel.
 
-| ヘッダーの操作 | 動作 |
+| Header action | Behavior |
 | --- | --- |
-| JSONエクスポート | 表示対象の通信を日時順の JSON 配列として保存。保存先を選択でき、日時・リクエスト・応答・使用量・イベントなどを含む |
-| クリア | 画面のログと保存済み JSONL、ローテーション済み JSONL を削除。通信中は操作不可 |
+| Export JSON | Choose a destination and save the displayed communications as a chronological JSON array, including timestamps, requests, responses, usage, and backend events |
+| Clear | Remove logs from the screen and delete saved JSONL logs, including the rotated file; disabled while requests are active |
 
-生成中でも JSON エクスポートは利用でき、ボタンを押した時点の内容を書き出します。
+JSON export is available during generation and captures the data as it existed when you clicked the button. User messages and AI responses are displayed in their original language.
 
-## 外部アプリから接続する
+## Connecting other applications
 
-既定の Base URL は **`http://127.0.0.1:8787/v1`** です。ポートを変更した場合は、画面に表示される URL を使用してください。URL 横のボタンでコピーできます。
+The default base URL is **`http://127.0.0.1:8787/v1`**. If you change the port, use the URL shown in the app. The copy button copies that URL.
 
-API キー入力が必須のクライアントでは、`local` など任意の文字列を指定できます。このローカルサーバーは API キー認証を行いません。待ち受けは IPv4 の `127.0.0.1` に固定しています。
+If your client requires an API key, use any string, such as `local`. This server does not enforce API-key authentication. It listens only on IPv4 `127.0.0.1`.
 
 ### Python OpenAI SDK
 
@@ -90,13 +91,13 @@ model = client.models.list().data[0].id
 reply = client.chat.completions.create(
     model=model,
     messages=[
-        {"role": "system", "content": "簡潔な日本語で回答してください。"},
-        {"role": "user", "content": "こんにちは！"},
+        {"role": "system", "content": "Keep your answers brief."},
+        {"role": "user", "content": "Hello!"},
     ],
 )
 print(reply.choices[0].message.content)
 
-stream = client.responses.create(model=model, input="接続テストです。", stream=True)
+stream = client.responses.create(model=model, input="Test the connection.", stream=True)
 for event in stream:
     if event.type == "response.output_text.delta":
         print(event.delta, end="", flush=True)
@@ -111,7 +112,7 @@ const client = new OpenAI({ baseURL: 'http://127.0.0.1:8787/v1', apiKey: 'local'
 const { data: models } = await client.models.list();
 const stream = await client.chat.completions.create({
   model: models[0].id,
-  messages: [{ role: 'user', content: 'ひとことで挨拶してください。' }],
+  messages: [{ role: 'user', content: 'Say hello briefly.' }],
   stream: true,
   stream_options: { include_usage: true },
 });
@@ -120,116 +121,116 @@ for await (const chunk of stream) {
 }
 ```
 
-ローカルで開発中の Web アプリからも使えます。CORS は `http(s)://localhost:<port>` と `http(s)://127.0.0.1:<port>` の Origin に対応し、それ以外は拒否します。ブラウザ用 OpenAI SDK では、同 SDK の `dangerouslyAllowBrowser` 設定が必要です。
+Local web applications can connect too. CORS allows `http(s)://localhost:<port>` and `http(s)://127.0.0.1:<port>` origins and rejects other origins. The OpenAI browser SDK also requires its `dangerouslyAllowBrowser` option.
 
-## API の対応範囲
+## API compatibility
 
-| API / 機能 | Codex app-server | Antigravity CLI |
+| API or feature | Codex app-server | Antigravity CLI |
 | --- | --- | --- |
-| `GET /health` | サーバー状態とバックエンド名 | 同左 |
-| `GET /v1/models` | `model/list` をページ送りして取得 | `agy models` から取得 |
-| `POST /v1/chat/completions` | テキスト応答、SSE、`stream_options.include_usage` | 同左 |
-| `POST /v1/responses` | テキスト応答、Responses 形式の SSE | 同左 |
-| system / developer / user / assistant | テキストとテキストパート配列 | 同左 |
-| `reasoning_effort` / `reasoning.effort` | モデルの対応値を検証して転送 | 未対応。モデル名で強度を選択 |
-| `response_format.type=json_schema` | スキーマを `outputSchema` に転送 | `--json-schema` に転送 |
-| `text.format.type=json_schema` | 同上 | 同上 |
-| `user`（Chat Completions） / `metadata` / `store` | 互換性のため受理。ユーザー管理や Responses の保存・取得機能は提供しない | 同左 |
-| 画像・音声・ファイル・Embeddings | 未対応 | 未対応 |
-| `tools` / tool calls / tool messages | 未対応 | 未対応 |
-| `temperature` / `top_p` / `max_tokens` / `max_output_tokens` / `stop` / `seed` / logprobs / `n>1` | 未対応 | 未対応 |
-| `previous_response_id` / Responses 取得・削除 / background | 未対応 | 未対応 |
-| JSON object モード | 未対応。JSON Schema を使用 | 同左 |
+| `GET /health` | Server status and backend name | Same |
+| `GET /v1/models` | Paginated `model/list` results | Results from `agy models` |
+| `POST /v1/chat/completions` | Text, SSE, and `stream_options.include_usage` | Same |
+| `POST /v1/responses` | Text and Responses-style SSE | Same |
+| system / developer / user / assistant | Text and arrays of text parts | Same |
+| `reasoning_effort` / `reasoning.effort` | Validated against the model's supported values and forwarded | Unsupported; select a model variant instead |
+| `response_format.type=json_schema` | Schema forwarded as `outputSchema` | Schema forwarded with `--json-schema` |
+| `text.format.type=json_schema` | Same mapping | Same mapping |
+| `user` (Chat Completions) / `metadata` / `store` | Accepted for compatibility; no user-management or Responses storage/retrieval service | Same |
+| Images / audio / files / embeddings | Unsupported | Unsupported |
+| `tools` / tool calls / tool messages | Unsupported | Unsupported |
+| `temperature` / `top_p` / `max_tokens` / `max_output_tokens` / `stop` / `seed` / logprobs / `n>1` | Unsupported | Unsupported |
+| `previous_response_id` / Responses retrieval or deletion / background | Unsupported | Unsupported |
+| JSON object mode | Unsupported; use JSON Schema | Same |
 
-OpenAI API 全体を完全に再現するものではありません。未対応のパラメーターには `400 unsupported_parameter` などのエラーを返します。クライアントが `temperature` や `max_tokens` を自動付与する場合は、その設定を外してください。
+This app implements a subset of the OpenAI API. Unsupported parameters return errors such as `400 unsupported_parameter`. Disable automatic `temperature` or `max_tokens` parameters in clients that add them.
 
-モデルを省略した場合は、バックエンドのカタログで既定として扱うモデル、一覧の先頭の順に選びます。Antigravity では `agy models` の先頭を既定として扱います。
+If `model` is omitted, the server selects the catalog's default model, falling back to the first model. For Antigravity, the first model returned by `agy models` is treated as the default.
 
-### 会話・実行の扱い
+### Conversation and execution behavior
 
-各 API リクエストは独立しています。会話履歴は毎回 `messages` または `input` に含めてください。画面の接続テストはユーザーメッセージを送信します。API 経由では system / developer メッセージや Responses の `instructions` も指定できます。
+Each API request is independent. Include conversation history in every `messages` or `input` payload. The connection-test form sends a user message; API clients can also send system/developer messages or Responses `instructions`.
 
-- **Codex:** リクエストごとに ephemeral な thread を作成します。system / developer は developer instructions に変換し、複数の user / assistant メッセージはロール付き JSON の会話データとして渡します。作業ディレクトリはアプリ専用、sandbox は read-only、承認ポリシーは `never` です。生成 thread のシェル・Web 検索・Apps・継承した MCP サーバーを無効にします。
-- **Antigravity:** リクエストごとに専用の作業ディレクトリとテキスト生成用エージェントを作成し、CLI の NDJSON 入出力を変換します。ツールは完了通知用の `finish` のみを許可し、スラッシュコマンド展開を無効にします。JSON Schema 出力は最終結果を受け取ってから本文を送ります。CLI 側に会話履歴が残る場合があり、ephemeral の保証はありません。
+- **Codex:** Each request creates an ephemeral thread. System/developer messages become developer instructions, and multi-message user/assistant history is passed as role-labeled JSON conversation data. The app uses its own working directory, a read-only sandbox, and approval policy `never`. Shell tools, web search, Apps, and inherited MCP servers are disabled for generation threads.
+- **Antigravity:** Each request uses a dedicated working directory and text-generation agent, with CLI NDJSON converted into OpenAI-compatible output. Only the `finish` completion tool is enabled, and slash-command expansion is disabled. JSON Schema output is sent after the final structured result arrives. The CLI may retain conversation history; ephemeral storage is not guaranteed.
 
-プロンプトの配置やトークン数はネイティブ OpenAI API と完全には一致しません。使用量はバックエンドが通知した値を返します。ユーザーの CLI 設定や認証情報を書き換えることはありません。
+Prompt placement and token counts can differ from the native OpenAI API. Usage values come from the backend. The app does not rewrite your CLI configuration or credentials.
 
-同時生成は最大16件、リクエスト本文は最大2 MiBです。クライアント切断・タイムアウト・サーバー停止で生成を中断します。Codex では `turn/interrupt`、Antigravity では該当 CLI プロセスの終了を使用します。SSE 開始後の失敗は、Chat Completions では `error` データ、Responses では `response.failed` イベントに表示します。
+The server allows up to 16 concurrent generations and request bodies up to 2 MiB. Client disconnection, timeout, or server shutdown interrupts generation: Codex uses `turn/interrupt`, while Antigravity terminates the corresponding CLI process. Failures after SSE starts appear as `error` data for Chat Completions or `response.failed` events for Responses.
 
-## 設定とログの保存先
+## Settings and log storage
 
-| 起動方法 | 保存先 |
+| Launch method | Storage directory |
 | --- | --- |
-| Mac アプリ | `~/Library/Application Support/Codex Local API/` |
-| 開発用 GUI（`./start.sh` / `npm start`） | `~/Library/Application Support/codex-local-api/` |
-| CLI（`npm run server`） | 起動したディレクトリ内の `.local-data/` |
+| Packaged Mac app | `~/Library/Application Support/Codex Local API/` |
+| Development GUI (`./start.sh` / `npm start`) | `~/Library/Application Support/codex-local-api/` |
+| CLI (`npm run server`) | `.local-data/` inside the current working directory |
 
-アプリ名を変更しても既存データを引き継ぐため、GUI の保存先には旧名称を継続使用しています。`CODEX_LOCAL_DATA` で設定・通信ログの保存先を指定することもできます。サイドバーの開閉状態などの画面設定は、GUI のプロファイルに保存します。
+The GUI retains the old directory names to preserve existing data after the app rename. Set `CODEX_LOCAL_DATA` to override the settings and traffic-log directory. UI preferences, including sidebar state, are stored in the GUI profile.
 
-- `settings.json`: バックエンド、ポート、各 CLI の実行ファイル、生成タイムアウト。
-- `logs/requests.jsonl`: 完了した通信を JSONL 形式で保存。20 MiB を超えると `.1` にローテーション。
-- 画面は直近最大300件を保持し、再起動時はファイル末尾の最大8 MiBを読み込みます。JSON エクスポートの対象は、そのうち画面に表示する Chat Completions / Responses の通信です。
-- 保存内容は本文・応答・エラー・使用量・バックエンドイベントなどです。Authorization ヘッダーや CLI の認証情報は記録しません。本文中に含めた値はそのまま保存されます。
+- `settings.json`: Backend, port, CLI executable paths, and generation timeout.
+- `logs/requests.jsonl`: Completed requests in JSONL format; rotated to `.1` after the file exceeds 20 MiB.
+- The app keeps up to 300 recent entries and reads at most the last 8 MiB on launch. JSON export includes the Chat Completions and Responses entries shown in the traffic panel.
+- Stored data includes messages, responses, errors, usage, and backend events. Authorization headers and CLI credentials are not recorded. Values included in message bodies are stored as supplied.
 
-## GUI なしで起動する
+## Running without the GUI
 
 ```sh
 npm run server
 ```
 
-Antigravity を使う場合:
+To use Antigravity:
 
 ```sh
 AI_BACKEND=antigravity npm run server
 ```
 
-| 環境変数 | 用途 |
+| Environment variable | Purpose |
 | --- | --- |
-| `AI_BACKEND` | `codex` / `antigravity` |
-| `PORT` | 待ち受けポート |
-| `CODEX_BINARY` | Codex 実行ファイルのパス |
-| `ANTIGRAVITY_BINARY` | `agy` 実行ファイルのパス |
-| `CODEX_LOCAL_DATA` | 設定・通信ログの保存先（GUI でも利用可能） |
+| `AI_BACKEND` | `codex` or `antigravity` |
+| `PORT` | Listening port |
+| `CODEX_BINARY` | Path to the Codex executable |
+| `ANTIGRAVITY_BINARY` | Path to the `agy` executable |
+| `CODEX_LOCAL_DATA` | Settings and traffic-log directory; also supported by the GUI |
 
-CLI は保存済み設定を読み込み、指定された環境変数の値で上書きして保存します。終了は `Ctrl+C` です。
+The CLI loads saved settings, overrides them with supplied environment variables, and saves the result. Press `Ctrl+C` to stop.
 
-## Mac アプリをビルドする
+## Building the Mac app
 
 ```sh
 ./build-mac.sh
 ```
 
-依存パッケージのインストール、Electron の準備、`.app` のビルド、ローカル署名の検証を行います。初回はダウンロードのためネットワーク接続が必要です。
+This installs dependencies, prepares Electron, builds the `.app`, and verifies its local signature. The initial download requires a network connection.
 
-| Node.js のアーキテクチャ | 出力先 |
+| Node.js architecture | Output |
 | --- | --- |
-| Apple Silicon（arm64） | `dist/mac-arm64/Local AI API Proxy.app` |
-| Intel（x64） | `dist/mac/Local AI API Proxy.app` |
+| Apple Silicon (arm64) | `dist/mac-arm64/Local AI API Proxy.app` |
+| Intel (x64) | `dist/mac/Local AI API Proxy.app` |
 
-ビルド済みアプリは Finder から開くか、`./start.sh --packaged` で起動できます。Applications フォルダにコピーすることもできます。生成するアプリはローカル用の ad-hoc 署名です。Developer ID 署名・公証は行いません。
+Open the built app in Finder or run `./start.sh --packaged`. You can also copy it into Applications. Builds use a local ad-hoc signature, without Developer ID signing or notarization.
 
-個別のコマンド:
+Individual commands:
 
 ```sh
-npm start       # 開発用 GUI
-npm run server  # GUI なしでサーバー起動
-npm test        # HTTP / JSONL / OpenAI SDK / ログ出力などの自動テスト
-npm run build   # .app をビルド
-npm run dist    # DMG を作成（配布用署名・公証は別途必要）
+npm start       # Development GUI
+npm run server  # Headless API server
+npm test        # HTTP, JSONL, SDK, and export tests
+npm run build   # Build the .app
+npm run dist    # Build a DMG; distribution signing/notarization is separate
 ```
 
-### 実バックエンドと GUI のスモークテスト
+### Real-backend and GUI smoke tests
 
-通常起動しているアプリを終了してから実行してください。
+Close the normally running app before starting a smoke test.
 
 ```sh
-npm start -- --smoke                       # 起動・モデル取得・GUI を確認
-npm start -- --smoke --smoke-inference     # 実生成を3回実行
-npm start -- --smoke --smoke-antigravity   # Antigravity で起動を確認
+npm start -- --smoke                       # Startup, model catalog, and GUI checks
+npm start -- --smoke --smoke-inference     # Three real generations
+npm start -- --smoke --smoke-antigravity   # Antigravity startup check
 npm start -- --smoke --smoke-antigravity --smoke-inference
-npm start -- --packaged --smoke            # ビルド済みアプリを確認
+npm start -- --packaged --smoke            # Check the built app
 ```
 
-`--smoke-antigravity` を指定しない場合は、スモークテスト用の保存設定のバックエンドを使用します。実生成は選択したバックエンドの利用枠を使用します。開発起動ではデータを `.local-data/gui-smoke/` に、画像を `.local-data/gui-smoke.png` に出力します。パッケージ版では一時ディレクトリ内の `local-ai-api-proxy-smoke/` を使用します。
+Without `--smoke-antigravity`, the test uses the backend saved in its smoke-test settings. Real generations consume the selected provider's quota. Development tests store data in `.local-data/gui-smoke/` and save a screenshot to `.local-data/gui-smoke.png`. Packaged tests use `local-ai-api-proxy-smoke/` inside the system temporary directory.
 
-参考仕様: [Codex App Server](https://learn.chatgpt.com/docs/app-server)、[Antigravity headless mode](https://antigravity.google/docs/cli/headless)。
+Reference specifications: [Codex App Server](https://learn.chatgpt.com/docs/app-server), [Antigravity headless mode](https://antigravity.google/docs/cli/headless).
