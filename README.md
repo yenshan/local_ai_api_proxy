@@ -2,7 +2,7 @@
 
 ![Local AI API Proxy: server settings, connection test, and traffic log](docs/images/app-screenshot.png)
 
-Run an OpenAI-compatible REST API server on your Mac at `http://127.0.0.1:8787/v1`. Supports Codex app-server and Antigravity CLI as AI backends.
+Run an OpenAI-compatible REST API server on macOS or Linux at `http://127.0.0.1:8787/v1`. Supports Codex app-server and Antigravity CLI as AI backends.
 
 ## Getting started
 
@@ -26,6 +26,21 @@ Output path (based on your Node.js architecture):
 
 - Apple Silicon (arm64): `dist/mac-arm64/Local AI API Proxy.app`
 - Intel (x64): `dist/mac/Local AI API Proxy.app`
+
+## Building the Linux app
+
+Run on Linux with Node.js and npm installed:
+
+```sh
+./build-linux.sh
+```
+
+This installs dependencies, prepares Electron, builds the app, and checks the output. The initial download requires a network connection.
+
+- x64: `dist/linux-unpacked/local-ai-api-proxy`
+- arm64: `dist/linux-arm64-unpacked/local-ai-api-proxy`
+
+Run the executable from the generated folder. Keep the entire folder together when copying the app to another machine. Backend CLI installation and sign-in are still required.
 
 ## Technical documentation
 

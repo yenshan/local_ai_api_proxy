@@ -11,6 +11,7 @@
     "server": "node src/cli.cjs",
     "test": "node --test test/*.test.cjs",
     "build": "electron-builder --mac dir",
+    "build:linux": "electron-builder --linux dir",
     "dist": "electron-builder --mac dmg"
   },
   "devDependencies": {
@@ -42,6 +43,12 @@
           "en"
         ]
       }
+    },
+    "linux": {
+      "executableName": "local-ai-api-proxy",
+      "icon": "build/icon.png",
+      "category": "Development",
+      "target": ["dir"]
     },
     "directories": {
       "output": "dist"
