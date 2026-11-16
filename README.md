@@ -12,6 +12,10 @@ For backend installation and sign-in instructions, see the official guides for [
 ./start.sh
 ```
 
+Requires Node.js and npm. On startup, `start.sh` automatically installs missing or incompatible application dependencies using `npm ci --include=dev` before launching the app.
+
+On Linux, the app uses software rendering to avoid GPU/VA-API driver initialization errors.
+
 ## Building the Mac app
 
 ```sh

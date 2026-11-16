@@ -4,6 +4,13 @@ const fs = require('node:fs');
 const { LocalServer } = require('./server.cjs');
 const { exportCommunicationLogs } = require('./export.cjs');
 app.commandLine.appendSwitch('lang', 'en-US');
+// This settings/log UI needs no GPU acceleration. Avoid Linux VA-API driver
+// initialization failures by using software rendering before Electron is ready.
+if (process.platform === 'linux') {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('disable-accelerated-video-decode');
+  app.commandLine.appendSwitch('disable-accelerated-video-encode');
+}
 // Keep the existing settings, logs and Chromium preferences after renaming.
 const legacyUserData = path.join(app.getPath('appData'), app.isPackaged ? 'Codex Local API' : 'codex-local-api');
 fs.mkdirSync(legacyUserData, { recursive: true });
