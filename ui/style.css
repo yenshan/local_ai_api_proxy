@@ -26,7 +26,8 @@ button:hover{filter:brightness(.96)}
 .sidebar #settingsStatus{flex-shrink:0;max-height:100px;overflow:auto;overflow-wrap:anywhere;margin:14px 0 0}
 .settings-status-error{color:#9a432b}
 .brand-title{white-space:nowrap;font-size:17px;letter-spacing:-.4px}
-.brand-icon{width:30px;height:30px;flex-shrink:0;border-radius:11px;background:#dcefe5;border:1px solid #d7e2db;color:var(--accent);font-size:28px;display:grid;place-items:center;font-weight:400}
+.brand-icon{width:30px;height:30px;flex-shrink:0;border-radius:11px;background:#dcefe5;border:1px solid #d7e2db;color:var(--accent);display:grid;place-items:center}
+.brand-icon>svg{display:block}
 .dot{display:inline-block;width:6px;height:6px;background:#23845c;border-radius:50%;flex-shrink:0}
 .text-button{color:#60756a;background:none;padding:4px 0;font-size:10px}
 main{margin-left:var(--sidebar-width);padding:calc(var(--titlebar-height) + 12px) 34px 30px;max-width:1900px}

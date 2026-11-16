@@ -1,4 +1,4 @@
-"""Render the app's code-bracket icon with no external Python dependencies."""
+"""Render the sidebar's centered command icon with no external dependencies."""
 import math
 from pathlib import Path
 import struct
@@ -8,15 +8,21 @@ import zlib
 root = Path(__file__).resolve().parent.parent
 folder = root / 'build'
 folder.mkdir(exist_ok=True)
-segments = [(395, 335, 255, 512), (255, 512, 395, 689),
-            (629, 335, 769, 512), (769, 512, 629, 689), (567, 305, 457, 719)]
+# Match the 30px sidebar tile and its 22px SVG (viewBox 0 0 24 24).
+tile_scale = 850 / 30
+glyph_scale = 22 * tile_scale / 24
+segments = [(8, 5.5, 8, 18.5), (16, 5.5, 16, 18.5),
+            (5.5, 8, 18.5, 8), (5.5, 16, 18.5, 16)]
+loops = [(5.5, 5.5, 1, 1), (18.5, 5.5, -1, 1),
+         (18.5, 18.5, -1, -1), (5.5, 18.5, 1, -1)]
 
 def chunk(kind, data):
     return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
 
 def rounded_distance(x, y):
-    qx, qy = abs(x - 512) - 235, abs(y - 512) - 235
-    return math.hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - 190
+    radius = 11 * tile_scale
+    qx, qy = abs(x - 512) - (425 - radius), abs(y - 512) - (425 - radius)
+    return math.hypot(max(qx, 0), max(qy, 0)) + min(max(qx, qy), 0) - radius
 
 def segment_distance(x, y, line):
     ax, ay, bx, by = line
@@ -24,19 +30,33 @@ def segment_distance(x, y, line):
     t = max(0, min(1, ((x-ax)*dx+(y-ay)*dy)/(dx*dx+dy*dy)))
     return math.hypot(x-ax-t*dx, y-ay-t*dy)
 
+def glyph_distance(x, y):
+    x, y = (x - 512) / glyph_scale + 12, (y - 512) / glyph_scale + 12
+    distance = min(segment_distance(x, y, line) for line in segments)
+    for cx, cy, sx, sy in loops:
+        dx, dy = x - cx, y - cy
+        # Each loop follows the SVG's outer 270-degree arc.
+        if dx * sx > 0 and dy * sy > 0:
+            arc = min(math.hypot(dx - sx * 2.5, dy),
+                      math.hypot(dx, dy - sy * 2.5))
+        else:
+            arc = abs(math.hypot(dx, dy) - 2.5)
+        distance = min(distance, arc)
+    return distance * glyph_scale
+
 pixels = bytearray()
 for y in range(1024):
     pixels.append(0)
     for x in range(1024):
-        distance = rounded_distance(x, y)
+        distance = rounded_distance(x + .5, y + .5)
         alpha = round(255 * max(0, min(1, .5-distance)))
-        rgb = (20, 35, 27)
+        rgb = (220, 239, 229)
         if alpha:
-            if distance > -5: rgb = (57, 84, 65)
-            else:
-                glyph = min(segment_distance(x, y, line) for line in segments)
-                blend = max(0, min(1, 23.5-glyph))
-                rgb = tuple(round(c+(a-c)*blend) for c,a in zip(rgb,(167,234,208)))
+            border = max(0, min(1, distance + tile_scale + .5))
+            rgb = tuple(round(c + (a-c)*border) for c,a in zip(rgb,(215,226,219)))
+            glyph = glyph_distance(x + .5, y + .5)
+            blend = max(0, min(1, .9 * glyph_scale + .5 - glyph))
+            rgb = tuple(round(c+(a-c)*blend) for c,a in zip(rgb,(35,115,78)))
         pixels.extend((*rgb, alpha))
 png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB',1024,1024,8,6,0,0,0)) + chunk(b'IDAT',zlib.compress(pixels,9)) + chunk(b'IEND',b'')
 source = folder / 'icon.png'
