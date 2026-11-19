@@ -67,9 +67,8 @@ for size in (16,32,128,256,512):
     for factor in (1,2):
         target = iconset / f'icon_{size}x{size}{"@2x" if factor==2 else ""}.png'
         subprocess.run(['sips','-z',str(size*factor),str(size*factor),str(source),'--out',str(target)],check=True,capture_output=True)
-icns = bytearray()
-for kind, filename in [(b'icp4','icon_16x16.png'), (b'icp5','icon_32x32.png'), (b'icp6','icon_32x32@2x.png'), (b'ic07','icon_128x128.png'), (b'ic08','icon_256x256.png'), (b'ic09','icon_512x512.png'), (b'ic10','icon_512x512@2x.png')]:
-    data = (iconset / filename).read_bytes()
-    icns.extend(kind + struct.pack('>I', len(data) + 8) + data)
-(folder/'icon.icns').write_bytes(b'icns' + struct.pack('>I', len(icns) + 8) + icns)
+# Let macOS encode the legacy small sizes and their Retina representations.
+# PNG-only hand-written entries omit the ic11/ic12 Retina slots Finder uses.
+subprocess.run(['iconutil', '--convert', 'icns', '--output',
+                str(folder / 'icon.icns'), str(iconset)], check=True)
 print(folder/'icon.icns')
