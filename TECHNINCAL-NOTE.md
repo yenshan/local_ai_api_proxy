@@ -10,6 +10,7 @@ Install Node.js and npm on macOS, and install and sign in to the backend you wan
 | --- | --- | --- |
 | Codex app-server | Run `codex login` | `/opt/homebrew/bin/codex`, `/usr/local/bin/codex`, `/Applications/Codex.app/Contents/Resources/codex`, then PATH |
 | Antigravity CLI | Launch `agy` to sign in; check models with `agy models` | `~/.local/bin/agy`, `/opt/homebrew/bin/agy`, `/usr/local/bin/agy`, then PATH |
+| Claude Code | Launch `claude` to sign in (or set `ANTHROPIC_API_KEY`) | `~/.local/bin/claude`, `~/.claude/local/claude`, `/opt/homebrew/bin/claude`, `/usr/local/bin/claude`, then PATH |
 
 Antigravity requires the **`agy` CLI** with non-interactive execution support, rather than the IDE's `antigravity` command. The app uses the CLI's existing credentials.
 
@@ -70,22 +71,22 @@ Local web applications can connect too. CORS allows `http(s)://localhost:<port>`
 
 ## API compatibility
 
-| API or feature | Codex app-server | Antigravity CLI |
-| --- | --- | --- |
-| `GET /health` | Server status and backend name | Same |
-| `GET /v1/models` | Paginated `model/list` results | Results from `agy models` |
-| `POST /v1/chat/completions` | Text, SSE, and `stream_options.include_usage` | Same |
-| `POST /v1/responses` | Text and Responses-style SSE | Same |
-| system / developer / user / assistant | Text and arrays of text parts | Same |
-| `reasoning_effort` / `reasoning.effort` | Validated against the model's supported values and forwarded | Unsupported; select a model variant instead |
-| `response_format.type=json_schema` | Schema forwarded as `outputSchema` | Schema forwarded with `--json-schema` |
-| `text.format.type=json_schema` | Same mapping | Same mapping |
-| `user` (Chat Completions) / `metadata` / `store` | Accepted for compatibility; no user-management or Responses storage/retrieval service | Same |
-| Images / audio / files / embeddings | Unsupported | Unsupported |
-| `tools` / tool calls / tool messages | Unsupported | Unsupported |
-| `temperature` / `top_p` / `max_tokens` / `max_output_tokens` / `stop` / `seed` / logprobs / `n>1` | Unsupported | Unsupported |
-| `previous_response_id` / Responses retrieval or deletion / background | Unsupported | Unsupported |
-| JSON object mode | Unsupported; use JSON Schema | Same |
+| API or feature | Codex app-server | Antigravity CLI | Claude Code |
+| --- | --- | --- | --- |
+| `GET /health` | Server status and backend name | Same | Same |
+| `GET /v1/models` | Paginated `model/list` results | Results from `agy models` | Fixed aliases: `sonnet` (default), `opus`, `fable`, `haiku` |
+| `POST /v1/chat/completions` | Text, SSE, and `stream_options.include_usage` | Same | Same |
+| `POST /v1/responses` | Text and Responses-style SSE | Same | Same |
+| system / developer / user / assistant | Text and arrays of text parts | Same | Same |
+| `reasoning_effort` / `reasoning.effort` | Validated against the model's supported values and forwarded | Unsupported; select a model variant instead | `low`, `medium`, `high`, `xhigh`, `max`, forwarded as `--effort` |
+| `response_format.type=json_schema` | Schema forwarded as `outputSchema` | Schema forwarded with `--json-schema` | Schema forwarded with `--json-schema` |
+| `text.format.type=json_schema` | Same mapping | Same mapping | Same mapping |
+| `user` (Chat Completions) / `metadata` / `store` | Accepted for compatibility; no user-management or Responses storage/retrieval service | Same | Same |
+| Images / audio / files / embeddings | Unsupported | Unsupported | Unsupported |
+| `tools` / tool calls / tool messages | Unsupported | Unsupported | Unsupported |
+| `temperature` / `top_p` / `max_tokens` / `max_output_tokens` / `stop` / `seed` / logprobs / `n>1` | Unsupported | Unsupported | Unsupported |
+| `previous_response_id` / Responses retrieval or deletion / background | Unsupported | Unsupported | Unsupported |
+| JSON object mode | Unsupported; use JSON Schema | Same | Same |
 
 This app implements a subset of the OpenAI API. Unsupported parameters return errors such as `400 unsupported_parameter`. Disable automatic `temperature` or `max_tokens` parameters in clients that add them.
 
@@ -97,10 +98,11 @@ Each API request is independent. Include conversation history in every `messages
 
 - **Codex:** Each request creates an ephemeral thread. System/developer messages become developer instructions, and multi-message user/assistant history is passed as role-labeled JSON conversation data. The app uses its own working directory, a read-only sandbox, and approval policy `never`. Shell tools, web search, Apps, and inherited MCP servers are disabled for generation threads.
 - **Antigravity:** Each request uses a dedicated working directory and text-generation agent, with CLI NDJSON converted into OpenAI-compatible output. Only the `finish` completion tool is enabled, and slash-command expansion is disabled. JSON Schema output is sent after the final structured result arrives. The CLI may retain conversation history; ephemeral storage is not guaranteed.
+- **Claude Code:** Each request runs `claude --print` in a dedicated temporary working directory with stream-JSON output. Built-in tools (`--tools ""`), MCP servers (`--strict-mcp-config`), slash commands and skills, and settings files (`--setting-sources ""`) are disabled, and sessions are not saved (`--no-session-persistence`). The default system prompt is replaced by the app's instructions plus any system/developer messages. Prompt tokens include cache reads and cache writes. Uses the CLI's existing sign-in or `ANTHROPIC_API_KEY`.
 
 Prompt placement and token counts can differ from the native OpenAI API. Usage values come from the backend. The app does not rewrite your CLI configuration or credentials.
 
-The server allows up to 16 concurrent generations and request bodies up to 2 MiB. Client disconnection, timeout, or server shutdown interrupts generation: Codex uses `turn/interrupt`, while Antigravity terminates the corresponding CLI process. Failures after SSE starts appear as `error` data for Chat Completions or `response.failed` events for Responses.
+The server allows up to 16 concurrent generations and request bodies up to 2 MiB. Client disconnection, timeout, or server shutdown interrupts generation: Codex uses `turn/interrupt`, while Antigravity and Claude Code terminate the corresponding CLI process. Failures after SSE starts appear as `error` data for Chat Completions or `response.failed` events for Responses.
 
 ## Settings and log storage
 
@@ -123,18 +125,20 @@ The GUI retains the old directory names to preserve existing data after the app 
 npm run server
 ```
 
-To use Antigravity:
+To use Antigravity or Claude Code:
 
 ```sh
 AI_BACKEND=antigravity npm run server
+AI_BACKEND=claude npm run server
 ```
 
 | Environment variable | Purpose |
 | --- | --- |
-| `AI_BACKEND` | `codex` or `antigravity` |
+| `AI_BACKEND` | `codex`, `antigravity`, or `claude` |
 | `PORT` | Listening port |
 | `CODEX_BINARY` | Path to the Codex executable |
 | `ANTIGRAVITY_BINARY` | Path to the `agy` executable |
+| `CLAUDE_BINARY` | Path to the `claude` executable |
 | `CODEX_LOCAL_DATA` | Settings and traffic-log directory; also supported by the GUI |
 
 The CLI loads saved settings, overrides them with supplied environment variables, and saves the result. Press `Ctrl+C` to stop.
@@ -173,9 +177,10 @@ npm start -- --smoke                       # Startup, model catalog, and GUI che
 npm start -- --smoke --smoke-inference     # Three real generations
 npm start -- --smoke --smoke-antigravity   # Antigravity startup check
 npm start -- --smoke --smoke-antigravity --smoke-inference
+npm start -- --smoke --smoke-claude --smoke-inference   # Claude Code (uses haiku)
 npm start -- --packaged --smoke            # Check the built app
 ```
 
-Without `--smoke-antigravity`, the test uses the backend saved in its smoke-test settings. Real generations consume the selected provider's quota. Development tests store data in `.local-data/gui-smoke/` and save a screenshot to `.local-data/gui-smoke.png`. Packaged tests use `local-ai-api-proxy-smoke/` inside the system temporary directory.
+Without `--smoke-antigravity` or `--smoke-claude`, the test uses the backend saved in its smoke-test settings. Real generations consume the selected provider's quota. Development tests store data in `.local-data/gui-smoke/` and save a screenshot to `.local-data/gui-smoke.png`. Packaged tests use `local-ai-api-proxy-smoke/` inside the system temporary directory.
 
-Reference specifications: [Codex App Server](https://learn.chatgpt.com/docs/app-server), [Antigravity headless mode](https://antigravity.google/docs/cli/headless).
+Reference specifications: [Codex App Server](https://learn.chatgpt.com/docs/app-server), [Antigravity headless mode](https://antigravity.google/docs/cli/headless), [Claude Code headless mode](https://code.claude.com/docs/en/headless).

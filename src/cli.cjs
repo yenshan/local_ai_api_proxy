@@ -4,6 +4,7 @@ const server = new LocalServer({ directory: process.env.CODEX_LOCAL_DATA || path
 server.configure({
   ...(process.env.AI_BACKEND ? { backend: process.env.AI_BACKEND } : {}),
   ...(process.env.ANTIGRAVITY_BINARY ? { antigravityBinary: process.env.ANTIGRAVITY_BINARY } : {}),
+  ...(process.env.CLAUDE_BINARY ? { claudeBinary: process.env.CLAUDE_BINARY } : {}),
   ...(process.env.PORT ? { port: Number(process.env.PORT) } : {}),
   ...(process.env.CODEX_BINARY ? { binary: process.env.CODEX_BINARY } : {}),
 });

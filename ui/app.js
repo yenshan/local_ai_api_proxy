@@ -50,7 +50,7 @@ function renderPlaygroundEffort(current = '') {
   select.replaceChildren();
   const option = el('option', '', 'Model default'); option.value = ''; select.append(option);
   const model = playgroundModels().find(m => m.model === $('testModel').value);
-  const efforts = snapshot.settings.backend === 'antigravity' ? [] : model?.supportedReasoningEfforts || [];
+  const efforts = model?.supportedReasoningEfforts || [];
   for (const entry of efforts) { const option = el('option', '', entry.reasoningEffort); option.value = entry.reasoningEffort; select.append(option); }
   if (Array.from(select.options).some(option => option.value === current)) select.value = current;
   select.disabled = !efforts.length;
@@ -134,7 +134,7 @@ function renderSettings() {
   settingsLocked = locked;
   const settingsKey = JSON.stringify(snapshot.settings);
   if (!settingsDirty && settingsKey !== settingsSignature) {
-    for (const key of ['port', 'binary', 'antigravityBinary', 'backend', 'timeout']) form.elements[key].value = snapshot.settings[key] ?? '';
+    for (const key of ['port', 'binary', 'antigravityBinary', 'claudeBinary', 'backend', 'timeout']) form.elements[key].value = snapshot.settings[key] ?? '';
   }
   settingsSignature = settingsKey;
   const editable = !settingsBusy && !locked;
@@ -142,8 +142,8 @@ function renderSettings() {
   backendFields();
 }
 function backendFields() {
-  const form = $('settingsForm'); const agy = form.elements.backend.value === 'antigravity';
-  $('codexBinaryField').hidden = agy; $('antigravityBinaryField').hidden = !agy;
+  const backend = $('settingsForm').elements.backend.value;
+  $('codexBinaryField').hidden = backend !== 'codex'; $('antigravityBinaryField').hidden = backend !== 'antigravity'; $('claudeBinaryField').hidden = backend !== 'claude';
 }
 function settingsStatus(message, error = false) {
   $('settingsStatus').textContent = message;
@@ -196,7 +196,7 @@ $('playgroundForm').addEventListener('submit', async event => {
     const messages = [{ role: 'user', content: $('testPrompt').value }];
     const effort = $('testEffort').value;
     const response = await call('test-request', { model: $('testModel').value, messages,
-      ...(effort && snapshot.settings.backend !== 'antigravity' ? { reasoning_effort: effort } : {}) });
+      ...(effort ? { reasoning_effort: effort } : {}) });
     result.textContent = response.choices[0].message.content;
   } catch (err) { result.classList.add('error'); result.textContent = err.message; }
   finally { playgroundBusy = false; renderState(); $('sendTest').textContent = '▷ Send Request'; }

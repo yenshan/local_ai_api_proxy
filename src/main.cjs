@@ -89,11 +89,12 @@ app.whenReady().then(async () => {
     await new Promise(resolve => window.webContents.once('did-finish-load', resolve));
     try {
       if (process.argv.includes('--smoke-antigravity')) server.configure({ backend: 'antigravity' });
+      if (process.argv.includes('--smoke-claude')) server.configure({ backend: 'claude' });
       await server.start();
       const state = await window.webContents.executeJavaScript('document.querySelector("#statusLabel").textContent');
       if (state !== 'Running') throw new Error(`Unexpected GUI status: ${state}`);
       if (process.argv.includes('--smoke-inference')) {
-        const model = (server.settings.backend === 'antigravity' && server.models.find(m => m.model.endsWith('-low'))) || server.models.find(m => m.isDefault) || server.models[0];
+        const model = (server.settings.backend === 'antigravity' && server.models.find(m => m.model.endsWith('-low'))) || (server.settings.backend === 'claude' && server.models.find(m => m.model === 'haiku')) || server.models.find(m => m.isDefault) || server.models[0];
         const post = async (endpoint, body) => {
           const response = await fetch(`http://127.0.0.1:${server.settings.port}/v1/${endpoint}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: model.model, ...body }) });
           const text = await response.text();
@@ -118,7 +119,7 @@ app.whenReady().then(async () => {
         const form = document.querySelector('#settingsForm');
         if (Array.from(form.querySelectorAll('input,select')).some(input => !input.disabled)) throw new Error('All settings must be locked while running');
         if (document.querySelector('#saveSettings')) throw new Error('Settings must save automatically');
-        if (!Array.from(form.elements.backend.options).some(o => o.value === 'antigravity')) throw new Error('Antigravity option missing');
+        for (const backend of ['antigravity', 'claude']) if (!Array.from(form.elements.backend.options).some(o => o.value === backend)) throw new Error(backend + ' option missing');
         if (!form.closest('.sidebar')) throw new Error('Settings must be in the sidebar');
       })()`);
       window.show(); window.focus();

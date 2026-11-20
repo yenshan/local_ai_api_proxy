@@ -3,7 +3,7 @@
   "productName": "Local AI API Proxy",
   "version": "1.0.0",
   "private": true,
-  "description": "Local OpenAI-compatible test server powered by Codex app-server or Antigravity CLI",
+  "description": "Local OpenAI-compatible test server powered by Codex app-server, Antigravity CLI, or Claude Code",
   "author": "Local Development",
   "main": "src/main.cjs",
   "scripts": {

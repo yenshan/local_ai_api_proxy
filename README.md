@@ -2,11 +2,11 @@
 
 ![Local AI API Proxy: server settings, connection test, and traffic log](docs/images/app-screenshot.png)
 
-Run an OpenAI-compatible REST API server on macOS or Linux at `http://127.0.0.1:8787/v1`. Supports Codex app-server and Antigravity CLI as AI backends.
+Run an OpenAI-compatible REST API server on macOS or Linux at `http://127.0.0.1:8787/v1`. Supports Codex app-server, Antigravity CLI, and Claude Code as AI backends.
 
 ## Getting started
 
-For backend installation and sign-in instructions, see the official guides for [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) and [Antigravity CLI](https://antigravity.google/docs/getting-started?tab=cli).
+For backend installation and sign-in instructions, see the official guides for [Codex CLI](https://learn.chatgpt.com/docs/codex/cli) and [Antigravity CLI](https://antigravity.google/docs/getting-started?tab=cli), and [Claude Code](https://code.claude.com/docs/en/quickstart).
 
 ```sh
 ./start.sh

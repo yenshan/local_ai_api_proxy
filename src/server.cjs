@@ -5,19 +5,22 @@ const { randomUUID } = require('node:crypto');
 const { EventEmitter } = require('node:events');
 const { CodexRPC } = require('./rpc.cjs');
 const { AntigravityBackend } = require('./antigravity.cjs');
+const { ClaudeBackend } = require('./claude.cjs');
 const { LogStore } = require('./store.cjs');
 const { APIError, normalize, chatUsage, responseObject } = require('./protocol.cjs');
 
-const DEFAULTS = { port: 8787, backend: 'codex', antigravityBinary: '', binary: '', timeout: 180 };
+const DEFAULTS = { port: 8787, backend: 'codex', antigravityBinary: '', claudeBinary: '', binary: '', timeout: 180 };
+const HEALTH_NAMES = { codex: 'codex-app-server', antigravity: 'antigravity', claude: 'claude-code' };
 const BASE = 'You are an assistant behind a local text-generation API. Answer directly. Do not inspect local files, run commands, browse the web, use skills, invoke tools, or perform actions. Only generate a reply to the supplied conversation.';
 
 class LocalServer extends EventEmitter {
-  constructor({ directory, rpcFactory, antigravityFactory } = {}) {
+  constructor({ directory, rpcFactory, antigravityFactory, claudeFactory } = {}) {
     super(); this.directory = directory || path.resolve('.local-data');
     fs.mkdirSync(path.join(this.directory, 'workspace'), { recursive: true, mode: 0o700 });
     this.store = new LogStore(path.join(this.directory, 'logs'));
     this.rpcFactory = rpcFactory || (opts => new CodexRPC(opts));
     this.antigravityFactory = antigravityFactory || (opts => new AntigravityBackend(opts));
+    this.claudeFactory = claudeFactory || (opts => new ClaudeBackend(opts));
     this.settings = { ...DEFAULTS }; this.models = []; this.state = 'stopped'; this.active = new Map(); this.diagnostics = [];
     try {
       const saved = JSON.parse(fs.readFileSync(path.join(this.directory, 'settings.json')));
@@ -35,8 +38,8 @@ class LocalServer extends EventEmitter {
     next.port = Number(next.port); next.timeout = Number(next.timeout);
     if (!Number.isInteger(next.port) || next.port < 1024 || next.port > 65535) throw new Error('Port must be an integer between 1024 and 65535.');
     if (!Number.isFinite(next.timeout) || next.timeout < 10 || next.timeout > 3600) throw new Error('Timeout must be between 10 and 3600 seconds.');
-    if (!['codex', 'antigravity'].includes(next.backend)) throw new Error('Invalid backend');
-    for (const key of ['binary', 'antigravityBinary']) if (typeof next[key] !== 'string') throw new Error(`Invalid ${key}`);
+    if (!Object.keys(HEALTH_NAMES).includes(next.backend)) throw new Error('Invalid backend');
+    for (const key of ['binary', 'antigravityBinary', 'claudeBinary']) if (typeof next[key] !== 'string') throw new Error(`Invalid ${key}`);
     return next;
   }
   commitSettings(next) {
@@ -60,9 +63,10 @@ class LocalServer extends EventEmitter {
     if (this.rpc || this.http) await this.stop();
     this.state = 'starting'; this.models = []; this.account = null; this.requiresLogin = false; this.error = null; this.emitState();
     try {
-      this.rpc = this.settings.backend === 'antigravity'
-        ? this.antigravityFactory({ binary: this.settings.antigravityBinary, cwd: path.join(this.directory, 'workspace') })
-        : this.rpcFactory({ binary: this.settings.binary, cwd: path.join(this.directory, 'workspace') });
+      const cwd = path.join(this.directory, 'workspace'); const { backend } = this.settings;
+      this.rpc = backend === 'antigravity' ? this.antigravityFactory({ binary: this.settings.antigravityBinary, cwd })
+        : backend === 'claude' ? this.claudeFactory({ binary: this.settings.claudeBinary, cwd })
+        : this.rpcFactory({ binary: this.settings.binary, cwd });
       this.rpc.on('diagnostic', message => { this.diagnostics.push({ time: new Date().toISOString(), message: message.slice(0, 8000) }); this.diagnostics = this.diagnostics.slice(-80); this.emit('diagnostic', this.diagnostics.at(-1)); });
       this.rpc.on('disconnected', err => {
         for (const controller of this.active.values()) controller.abort(err);
@@ -80,7 +84,7 @@ class LocalServer extends EventEmitter {
         this.requiresLogin = account.requiresOpenaiAuth && !account.account;
         if (this.requiresLogin) this.error = 'Codex is not signed in. Run codex login in a terminal, then restart the server.';
       } else {
-        this.account = { type: 'Antigravity CLI' };
+        this.account = { type: this.settings.backend === 'claude' ? 'Claude Code' : 'Antigravity CLI' };
       }
       await this.refreshModels();
       this.http = http.createServer((req, res) => this.handle(req, res));
@@ -98,7 +102,7 @@ class LocalServer extends EventEmitter {
   async refreshModels() {
     const rpc = this.rpc; const backend = this.settings.backend;
     if (!rpc) throw new Error('Start the server first.');
-    if (backend === 'antigravity') {
+    if (backend !== 'codex') {
       const models = await rpc.listModels();
       if (this.rpc !== rpc || this.settings.backend !== backend) return this.models;
       this.models = models; this.emitState(); return models;
@@ -152,7 +156,7 @@ class LocalServer extends EventEmitter {
       if (req.method === 'OPTIONS') {
         res.writeHead(204); res.end();
       } else if (req.method === 'GET' && route === '/health') {
-        row.response = { status: this.state, backend: this.settings.backend === 'antigravity' ? 'antigravity' : 'codex-app-server' }; sendJSON(this.state === 'running' ? 200 : 503, row.response);
+        row.response = { status: this.state, backend: HEALTH_NAMES[this.settings.backend] }; sendJSON(this.state === 'running' ? 200 : 503, row.response);
       } else if (req.method === 'GET' && route === '/v1/models') {
         if (this.state !== 'running') throw new APIError('AI backend is unavailable', 503, null, 'server_error');
         await this.refreshModels();
@@ -227,8 +231,8 @@ class LocalServer extends EventEmitter {
   }
   async generate(row, input, model, effort, signal, onDelta) {
     const rpc = this.rpc;
-    if (this.settings.backend === 'antigravity') {
-      const result = await rpc.generate({ input, model, signal, timeout: this.settings.timeout * 1000, baseInstructions: BASE,
+    if (this.settings.backend !== 'codex') {
+      const result = await rpc.generate({ input, model, effort, signal, timeout: this.settings.timeout * 1000, baseInstructions: BASE,
         onDelta: delta => { this.store.update(row, { text: row.text + delta }); onDelta(delta); },
         onThread: threadId => this.store.update(row, { threadId }),
         onEvent: event => { if (row.events.length < 1000) row.events.push({ time: new Date().toISOString(), ...event }); else row.eventsTruncated = true; } });
